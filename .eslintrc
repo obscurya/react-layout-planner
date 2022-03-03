@@ -1,0 +1,22 @@
+{
+  "parser": "@babel/eslint-parser",
+  "parserOptions": {
+    "requireConfigFile": false,
+    "babelOptions": {
+      "presets": ["@babel/preset-react"]
+    }
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "standard",
+    "standard-jsx",
+    "standard-react"
+  ],
+  "rules": {
+    "react/prop-types": "off",
+    "no-unused-vars": "warn",
+    "jsx-quotes": "off",
+    "react/jsx-closing-bracket-location": "off"
+  }
+}
