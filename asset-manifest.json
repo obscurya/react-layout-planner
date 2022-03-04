@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/react-layout-planner/static/css/main.eae41f94.css",
-    "main.js": "/react-layout-planner/static/js/main.32c4da7e.js",
+    "main.css": "/react-layout-planner/static/css/main.b8ba6e4c.css",
+    "main.js": "/react-layout-planner/static/js/main.5fc03ff2.js",
     "index.html": "/react-layout-planner/index.html",
-    "main.eae41f94.css.map": "/react-layout-planner/static/css/main.eae41f94.css.map",
-    "main.32c4da7e.js.map": "/react-layout-planner/static/js/main.32c4da7e.js.map"
+    "main.b8ba6e4c.css.map": "/react-layout-planner/static/css/main.b8ba6e4c.css.map",
+    "main.5fc03ff2.js.map": "/react-layout-planner/static/js/main.5fc03ff2.js.map"
   },
   "entrypoints": [
-    "static/css/main.eae41f94.css",
-    "static/js/main.32c4da7e.js"
+    "static/css/main.b8ba6e4c.css",
+    "static/js/main.5fc03ff2.js"
   ]
 }
