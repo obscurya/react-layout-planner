@@ -55,6 +55,7 @@ const Edge = (props) => {
                 points={[p1.x, p1.y, p2.x, p2.y]}
                 strokeWidth={1}
                 stroke={EDGE_BORDER_COLOR}
+                lineCap="round"
               />
             )
           })}

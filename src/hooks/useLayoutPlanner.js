@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
 
+import {
+  CURSOR_TOOL,
+  MIN_CORNER_HALF_ANGLE
+} from '../components/LayoutPlanner/constants'
 import { CURSOR_RADIUS, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
 
 import {
@@ -19,11 +23,13 @@ import {
 
 const initialState = {
   cursor: {
+    tool: CURSOR_TOOL.DRAW_WALL,
     x: 0,
     y: 0,
     r: CURSOR_RADIUS,
     nodeIndex: null,
-    edgePoint: null
+    edgePoint: null,
+    isBound: false
   },
   tmpEdge: { nodes: null, isAllowed: false },
   nodes: [],
@@ -39,6 +45,8 @@ export const useLayoutPlanner = () => {
   const [edges, setEdges] = useState(initialState.edges)
   const [shapedEdges, setShapedEdges] = useState(initialState.shapedEdges)
   const [polygons, setPolygons] = useState(initialState.polygons)
+
+  /* CURSOR FUNCTIONS */
 
   const getCursorCoords = () => {
     if (cursor.nodeIndex !== null) {
@@ -59,6 +67,12 @@ export const useLayoutPlanner = () => {
   const setCursorCoords = (x, y) => {
     setCursor({ ...cursor, x, y })
   }
+
+  const setCursorTool = (tool) => {
+    setCursor({ ...cursor, tool })
+  }
+
+  /* EDGE FUNCTIONS */
 
   const getEdgeNodes = (edge) => {
     return edge.map((nodeIndex) => {
@@ -290,8 +304,14 @@ export const useLayoutPlanner = () => {
   useEffect(createPolygonsEffect, [nodes, edges])
 
   // привязка курсора к одной из вершин или к одному из ребер
+  // P.S. события мышки на фигурах из konva - кусок говна
   const cursorBindingEffect = () => {
-    const newCursor = { ...cursor, nodeIndex: null, edgePoint: null }
+    const newCursor = {
+      ...cursor,
+      nodeIndex: null,
+      edgePoint: null,
+      isBound: false
+    }
     const allNodes = tmpEdge.nodes ? [...nodes, tmpEdge.nodes[0]] : nodes
     const collidingNodeIndex = allNodes.findIndex((node) => {
       return pointCircleCollision(node, newCursor)
@@ -300,6 +320,7 @@ export const useLayoutPlanner = () => {
     if (collidingNodeIndex !== -1) {
       newCursor.nodeIndex =
         collidingNodeIndex === nodes.length ? 'tmpNode' : collidingNodeIndex
+      newCursor.isBound = true
     } else {
       for (const edge of edges) {
         const [p1, p2] = getEdgeNodes(edge)
@@ -307,6 +328,7 @@ export const useLayoutPlanner = () => {
 
         if (intersectionPoint) {
           newCursor.edgePoint = intersectionPoint
+          newCursor.isBound = true
           break
         }
       }
@@ -475,17 +497,17 @@ export const useLayoutPlanner = () => {
     const shapedEdges = edges.map((edge) => {
       return Object.entries(getEdgeNodesNeighborNodes(edge)).reduce(
         (points, [nodeIndexStr, neighborNodes]) => {
+          // TODO: добавить комментарии...
+
           const nodeIndex = Number(nodeIndexStr)
           const node = nodes[nodeIndex]
           const edgeAngle = getEdgeAngle(edge, nodeIndex !== edge[0])
 
-          if (!neighborNodes.length) {
-            // у вершины нет соседних вершин, рубим край ребра
+          const cutCorner = () => {
             const angle1 = edgeAngle + Math.PI / 2
             const angle2 = edgeAngle - Math.PI / 2
 
             return [
-              ...points,
               [
                 {
                   x: node.x + HALF_EDGE_WIDTH * Math.cos(angle1),
@@ -501,21 +523,32 @@ export const useLayoutPlanner = () => {
             ]
           }
 
-          // TODO: добавить комментарии...
+          if (!neighborNodes.length) {
+            // у вершины нет соседних вершин, рубим край ребра
+            return [...points, ...cutCorner()]
+          }
 
           const getCornerPoints = (angleBetweenEdges, absolute = false) => {
-            // TODO: добавить обрезание угла, если у него маленький градус
             const halfAngleBetweenEdges = angleBetweenEdges / 2
+
+            if (
+              !absolute &&
+              Math.abs(halfAngleBetweenEdges) < MIN_CORNER_HALF_ANGLE
+            ) {
+              return cutCorner()
+            }
+
             const sinAngle = Math.sin(
               absolute ? Math.abs(halfAngleBetweenEdges) : halfAngleBetweenEdges
             )
             const distance = HALF_EDGE_WIDTH / sinAngle
             const pointAngle = edgeAngle - halfAngleBetweenEdges
+            const oppositePointAngle = pointAngle + Math.PI
 
             return [
               {
-                x: node.x + distance * Math.cos(pointAngle + Math.PI),
-                y: node.y + distance * Math.sin(pointAngle + Math.PI)
+                x: node.x + distance * Math.cos(oppositePointAngle),
+                y: node.y + distance * Math.sin(oppositePointAngle)
               },
               {
                 x: node.x + distance * Math.cos(pointAngle),
@@ -530,6 +563,10 @@ export const useLayoutPlanner = () => {
               neighborNodes[0]
             ])
             const cornerPoints = getCornerPoints(edgeAngle - neighborEdgeAngle)
+
+            if (cornerPoints[0][0]) {
+              return [...points, ...cornerPoints]
+            }
 
             return [...points, cornerPoints]
           }
@@ -607,6 +644,9 @@ export const useLayoutPlanner = () => {
     setCursorCoords,
     getCursorCoords,
     beginTmpEdge,
-    endTmpEdge
+    endTmpEdge,
+    isCursorBound: cursor.isBound,
+    cursorTool: cursor.tool,
+    setCursorTool
   }
 }
