@@ -1,6 +1,4 @@
-// TODO: привязка курсора к сетке
-
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { Layer, Line } from 'react-konva'
 
 import {
@@ -15,7 +13,8 @@ const Grid = (props) => {
   const {
     sizes: { width, height },
     coords,
-    scale
+    scale,
+    bindCursorToGrid
   } = props
 
   const relativeCellSize = GRID_CELL_SIZE * scale
@@ -30,23 +29,29 @@ const Grid = (props) => {
     return cellPartX
   }
 
-  const offsetX = -getCellPart(coords.x) * GRID_CELL_SIZE
-  const offsetY = -getCellPart(coords.y) * GRID_CELL_SIZE
+  const offset = {
+    x: -getCellPart(coords.x) * GRID_CELL_SIZE,
+    y: -getCellPart(coords.y) * GRID_CELL_SIZE
+  }
 
-  const startX = -coords.x / scale + offsetX
-  const startY = -coords.y / scale + offsetY
+  const start = useMemo(() => {
+    return {
+      x: -coords.x / scale + offset.x,
+      y: -coords.y / scale + offset.y
+    }
+  }, [coords, scale, offset])
 
   const createLines = () => {
     const rowsNumber =
-      Math.floor((width / scale - offsetX) / GRID_CELL_SIZE) + 1
+      Math.floor((width / scale - offset.x) / GRID_CELL_SIZE) + 1
     const verticalLinesNumber = rowsNumber * GRID_LINES_IN_CELL_NUMBER + 1
 
     const columnsNumber =
-      Math.floor((height / scale - offsetY) / GRID_CELL_SIZE) + 1
+      Math.floor((height / scale - offset.y) / GRID_CELL_SIZE) + 1
     const horizontalLinesNumber = columnsNumber * GRID_LINES_IN_CELL_NUMBER + 1
 
-    const endX = startX + GRID_LINE_STEP * verticalLinesNumber
-    const endY = startY + GRID_LINE_STEP * horizontalLinesNumber
+    const endX = start.x + GRID_LINE_STEP * verticalLinesNumber
+    const endY = start.y + GRID_LINE_STEP * horizontalLinesNumber
 
     const isDarker = (li) => {
       return li % GRID_LINES_IN_CELL_NUMBER === 0
@@ -54,55 +59,41 @@ const Grid = (props) => {
 
     const getPoints = (direction, li) => {
       if (direction === 0) {
-        const x = startX + GRID_LINE_STEP * li
+        const x = start.x + GRID_LINE_STEP * li
 
-        return [x, startY, x, endY]
+        return [x, start.y, x, endY]
       }
 
-      const y = startY + GRID_LINE_STEP * li
+      const y = start.y + GRID_LINE_STEP * li
 
-      return [startX, y, endX, y]
+      return [start.x, y, endX, y]
     }
 
     const [lines, darkerLines] = [
       verticalLinesNumber,
       horizontalLinesNumber
     ].reduce(
-      ([lines, darkerLines], linesNumber, direction) => {
+      (allLines, linesNumber, direction) => {
         return [...new Array(linesNumber)].reduce(
           ([lines, darkerLines], _, li) => {
-            const key = `grid-line-${direction}-${li}`
-            const points = getPoints(direction, li)
+            const isLineDarker = isDarker(li)
+            const stroke = isLineDarker ? GRID_CELL_COLOR : GRID_LINE_COLOR
+            const line = (
+              <Line
+                key={`grid-line-${direction}-${li}`}
+                points={getPoints(direction, li)}
+                stroke={stroke}
+                strokeWidth={1}
+              />
+            )
 
-            if (isDarker(li)) {
-              return [
-                lines,
-                [
-                  ...darkerLines,
-                  <Line
-                    key={key}
-                    points={points}
-                    stroke={GRID_CELL_COLOR}
-                    strokeWidth={1}
-                  />
-                ]
-              ]
+            if (isLineDarker) {
+              return [lines, [...darkerLines, line]]
             }
 
-            return [
-              [
-                ...lines,
-                <Line
-                  key={key}
-                  points={points}
-                  stroke={GRID_LINE_COLOR}
-                  strokeWidth={1}
-                />
-              ],
-              darkerLines
-            ]
+            return [[...lines, line], darkerLines]
           },
-          [lines, darkerLines]
+          allLines
         )
       },
       [[], []]
@@ -114,6 +105,21 @@ const Grid = (props) => {
   const lines = useMemo(() => {
     return createLines()
   }, [width, height, coords, scale])
+
+  const bindCursorToGridEffect = () => {
+    bindCursorToGrid(({ x, y }) => {
+      return {
+        x:
+          start.x +
+          Math.round(Math.abs(x - start.x) / GRID_LINE_STEP) * GRID_LINE_STEP,
+        y:
+          start.y +
+          Math.round(Math.abs(y - start.y) / GRID_LINE_STEP) * GRID_LINE_STEP
+      }
+    })
+  }
+
+  useEffect(bindCursorToGridEffect, [coords, scale, offset])
 
   return <Layer>{lines}</Layer>
 }

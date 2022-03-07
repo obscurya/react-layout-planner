@@ -34,6 +34,18 @@ const Canvas = (props) => {
   const [coords, setCoords] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [scale, setScale] = useState({ x: 1, y: 1 })
+  const [gridCursorCoords, setGridCursorCoords] = useState({ x: 0, y: 0 })
+
+  const bindCursorToGrid = (callback) => {
+    const position = stage?.getRelativePointerPosition() || { x: 0, y: 0 }
+    const coords = callback(position)
+
+    if (coords.x === gridCursorCoords.x && coords.y === gridCursorCoords.y) {
+      return
+    }
+
+    setGridCursorCoords(coords)
+  }
 
   const resizeCanvas = () => {
     setSizes({
@@ -53,7 +65,8 @@ const Canvas = (props) => {
   useEffect(resizeCanvasEffect, [])
 
   const handleMouseMove = () => {
-    const { x, y } = stage.getRelativePointerPosition()
+    // const { x, y } = stage.getRelativePointerPosition()
+    const { x, y } = gridCursorCoords
 
     setCursorCoords(x, y)
   }
@@ -197,7 +210,12 @@ const Canvas = (props) => {
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
       onContextMenu={handleContextMenu}>
-      <Grid sizes={sizes} coords={coords} scale={scale.x} />
+      <Grid
+        sizes={sizes}
+        coords={coords}
+        scale={scale.x}
+        bindCursorToGrid={bindCursorToGrid}
+      />
       <Layer>
         {polygons.map((polygonNodes, polygonIndex) => {
           return (
