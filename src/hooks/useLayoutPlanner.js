@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react'
+// TODO: подписывать размеры стен
+// TODO: подписывать площади помещений
+// TODO: привязка вершин при перемещении
+
+import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
 
 import {
   CURSOR_TOOL,
-  MIN_CORNER_HALF_ANGLE
+  MIN_CORNER_ANGLE
 } from '../components/LayoutPlanner/constants'
 import { CURSOR_RADIUS, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
 
@@ -28,13 +32,13 @@ const initialState = {
     y: 0,
     r: CURSOR_RADIUS,
     nodeIndex: null,
-    edgePoint: null,
-    isBound: false
+    edgePoint: null
   },
   tmpEdge: { nodes: null, isAllowed: false },
   nodes: [],
   edges: [],
   shapedEdges: [],
+  grabbedObject: null,
   polygons: []
 }
 
@@ -44,6 +48,7 @@ export const useLayoutPlanner = () => {
   const [nodes, setNodes] = useState(initialState.nodes)
   const [edges, setEdges] = useState(initialState.edges)
   const [shapedEdges, setShapedEdges] = useState(initialState.shapedEdges)
+  const [grabbedObject, setGrabbedObject] = useState(initialState.grabbedObject)
   const [polygons, setPolygons] = useState(initialState.polygons)
 
   /* CURSOR FUNCTIONS */
@@ -70,6 +75,31 @@ export const useLayoutPlanner = () => {
 
   const setCursorTool = (tool) => {
     setCursor({ ...cursor, tool })
+  }
+
+  const getHoveredObject = () => {
+    if (cursor.tool !== CURSOR_TOOL.MOVE) {
+      return null
+    }
+
+    if (cursor.nodeIndex !== null) {
+      return {
+        type: 'node',
+        index: cursor.nodeIndex
+      }
+    }
+
+    return null
+  }
+
+  const hoveredObject = getHoveredObject()
+
+  const beginGrabbing = () => {
+    setGrabbedObject(hoveredObject)
+  }
+
+  const endGrabbing = () => {
+    setGrabbedObject(null)
   }
 
   /* EDGE FUNCTIONS */
@@ -309,18 +339,23 @@ export const useLayoutPlanner = () => {
     const newCursor = {
       ...cursor,
       nodeIndex: null,
-      edgePoint: null,
-      isBound: false
+      edgePoint: null
     }
     const allNodes = tmpEdge.nodes ? [...nodes, tmpEdge.nodes[0]] : nodes
-    const collidingNodeIndex = allNodes.findIndex((node) => {
+    const collidingNodeIndex = allNodes.findIndex((node, nodeIndex) => {
+      if (
+        grabbedObject?.type === 'node' &&
+        grabbedObject?.index === nodeIndex
+      ) {
+        return false
+      }
+
       return pointCircleCollision(node, newCursor)
     })
 
     if (collidingNodeIndex !== -1) {
       newCursor.nodeIndex =
         collidingNodeIndex === nodes.length ? 'tmpNode' : collidingNodeIndex
-      newCursor.isBound = true
     } else {
       for (const edge of edges) {
         const [p1, p2] = getEdgeNodes(edge)
@@ -328,7 +363,6 @@ export const useLayoutPlanner = () => {
 
         if (intersectionPoint) {
           newCursor.edgePoint = intersectionPoint
-          newCursor.isBound = true
           break
         }
       }
@@ -529,15 +563,11 @@ export const useLayoutPlanner = () => {
           }
 
           const getCornerPoints = (angleBetweenEdges, absolute = false) => {
-            const halfAngleBetweenEdges = angleBetweenEdges / 2
-
-            if (
-              !absolute &&
-              Math.abs(halfAngleBetweenEdges) < MIN_CORNER_HALF_ANGLE
-            ) {
+            if (Math.abs(angleBetweenEdges) < MIN_CORNER_ANGLE) {
               return cutCorner()
             }
 
+            const halfAngleBetweenEdges = angleBetweenEdges / 2
             const sinAngle = Math.sin(
               absolute ? Math.abs(halfAngleBetweenEdges) : halfAngleBetweenEdges
             )
@@ -606,8 +636,18 @@ export const useLayoutPlanner = () => {
             angles.push(Math.PI * 2 + lna)
           }
 
+          if (
+            angles.filter((angle) => {
+              return Math.abs(angle) < MIN_CORNER_ANGLE
+            }).length
+          ) {
+            return [...points, ...cutCorner()]
+          }
+
           const [p1, p2] = angles.map((angle) => {
-            return getCornerPoints(angle, true)[1]
+            const cornerPoints = getCornerPoints(angle, true)
+
+            return cornerPoints[1]
           })
 
           return [...points, [p1, node, p2]]
@@ -619,34 +659,86 @@ export const useLayoutPlanner = () => {
     setShapedEdges(shapedEdges)
   }
 
-  useEffect(createShapedEdgesEffect, [edges])
+  useEffect(createShapedEdgesEffect, [nodes, edges])
 
-  const returnedTmpEdge = tmpEdge.nodes
-    ? { ...tmpEdge, nodes: getEdgeNodes(tmpEdge.nodes) }
-    : null
-  const returnedEdges = edges.map((edge, edgeIndex) => {
+  const moveGrabbedObjectEffect = () => {
+    if (!grabbedObject) {
+      return
+    }
+
+    if (grabbedObject.type === 'node') {
+      if (
+        hoveredObject?.type === 'node' &&
+        hoveredObject?.index !== grabbedObject.index
+      ) {
+        return
+      }
+
+      const newNode = { x: cursor.x, y: cursor.y }
+
+      if (arePointsEqual(nodes[grabbedObject.index], newNode)) {
+        return
+      }
+
+      setNodes(
+        nodes.map((node, nodeIndex) => {
+          if (nodeIndex === grabbedObject.index) {
+            return newNode
+          }
+
+          return node
+        })
+      )
+    }
+  }
+
+  useEffect(moveGrabbedObjectEffect, [cursor, nodes, grabbedObject])
+
+  const getEdgeData = (edge) => {
     return {
       nodes: getEdgeNodes(edge),
       length: getEdgeLength(edge),
-      angle: getEdgeAngle(edge),
-      shape: shapedEdges[edgeIndex]
+      angle: getEdgeAngle(edge)
     }
-  })
-  const returnedPolygons = polygons.map((polygon) => {
-    return getPolygonNodes(polygon)
-  })
+  }
+
+  const returnedTmpEdge = tmpEdge.nodes
+    ? {
+        ...getEdgeData(tmpEdge.nodes),
+        isAllowed: tmpEdge.isAllowed
+      }
+    : null
+  const returnedEdges = useMemo(() => {
+    return edges.map((edge, edgeIndex) => {
+      return {
+        ...getEdgeData(edge),
+        shape: shapedEdges[edgeIndex]
+      }
+    })
+  }, [edges, shapedEdges])
+  const returnedPolygons = useMemo(() => {
+    return polygons.map((polygon) => {
+      return getPolygonNodes(polygon)
+    })
+  }, [polygons])
+  const returnedCursor = {
+    coords: getCursorCoords(),
+    tool: cursor.tool,
+    hoveredObject,
+    grabbedObject
+  }
 
   return {
     tmpEdge: returnedTmpEdge,
     nodes,
     edges: returnedEdges,
     polygons: returnedPolygons,
+    cursor: returnedCursor,
     setCursorCoords,
-    getCursorCoords,
+    setCursorTool,
+    beginGrabbing,
+    endGrabbing,
     beginTmpEdge,
-    endTmpEdge,
-    isCursorBound: cursor.isBound,
-    cursorTool: cursor.tool,
-    setCursorTool
+    endTmpEdge
   }
 }

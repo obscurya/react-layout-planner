@@ -5,13 +5,14 @@ export const Container = styled(Box)`
   position: relative;
   flex: 1;
   overflow: hidden;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
 `
 
 export const ToolsContainer = styled.div`
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  left: ${({ theme }) => theme.spacing(1)};
+  margin-left: ${({ theme }) => theme.spacing(1)};
 `
 
 export const ToolButton = styled(Button)`

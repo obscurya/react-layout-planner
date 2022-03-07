@@ -5,13 +5,10 @@ import Konva from 'konva'
 import { CURSOR_TOOL } from '../LayoutPlanner/constants'
 import { STAGE_SCALE_STEP } from './constants'
 
-import Cursor from './shapes/Cursor'
-import Node from './shapes/Node'
-import Edge from './shapes/Edge'
-import Polygon from './shapes/Polygon'
-import TmpEdge from './shapes/TmpEdge'
+import { Grid, Cursor, Node, Edge, Polygon, TmpEdge } from './shapes'
 
 Konva.dragButtons = [2]
+Konva.angleDeg = false
 
 const Canvas = (props) => {
   const {
@@ -20,12 +17,13 @@ const Canvas = (props) => {
     nodes,
     edges,
     polygons,
+    cursor,
     setCursorCoords,
-    getCursorCoords,
+    beginGrabbing,
+    endGrabbing,
     beginTmpEdge,
     endTmpEdge,
-    isCursorBound,
-    cursorTool
+    pixelsToMeters
   } = props
 
   const [stage, setStage] = useState(null)
@@ -66,13 +64,27 @@ const Canvas = (props) => {
 
   const handleMouseDown = (e) => {
     if (isLeftButton(e)) {
-      beginTmpEdge()
+      if (cursor.hoveredObject) {
+        beginGrabbing()
+        return
+      }
+
+      if (cursor.tool === CURSOR_TOOL.DRAW_WALL) {
+        beginTmpEdge()
+      }
     }
   }
 
   const handleMouseUp = (e) => {
     if (isLeftButton(e)) {
-      endTmpEdge()
+      if (cursor.grabbedObject) {
+        endGrabbing()
+        return
+      }
+
+      if (cursor.tool === CURSOR_TOOL.DRAW_WALL) {
+        endTmpEdge()
+      }
     }
   }
 
@@ -81,7 +93,7 @@ const Canvas = (props) => {
   }
 
   const handleDragMove = () => {
-    setCoords({ x: stage.x(), y: stage.y() })
+    setCoords(stage.position())
   }
 
   const handleDragEnd = () => {
@@ -102,7 +114,6 @@ const Canvas = (props) => {
     setScale({ x: newScale, y: newScale })
 
     const { x, y } = stage.getPointerPosition()
-
     const cursorTo = {
       x: (x - coords.x) / oldScale,
       y: (y - coords.y) / oldScale
@@ -114,18 +125,60 @@ const Canvas = (props) => {
     })
   }
 
+  const handleContextMenu = (e) => {
+    e.evt.preventDefault()
+  }
+
+  const getCursorStyle = () => {
+    if (isDragging) {
+      return 'move'
+    }
+
+    if (cursor.grabbedObject || cursor.hoveredObject) {
+      return 'pointer'
+    }
+
+    return 'default'
+  }
+
+  const isNodeHovered = (nodeIndex) => {
+    if (cursor.grabbedObject) {
+      return (
+        cursor.grabbedObject.type === 'node' &&
+        cursor.grabbedObject.index === nodeIndex
+      )
+    }
+
+    if (cursor.hoveredObject) {
+      return (
+        cursor.hoveredObject.type === 'node' &&
+        cursor.hoveredObject.index === nodeIndex
+      )
+    }
+
+    return false
+  }
+
   const renderTmpEdge = () => {
     if (!tmpEdge) {
       return null
     }
 
-    const { nodes, isAllowed } = tmpEdge
+    const { nodes, length, angle, isAllowed } = tmpEdge
 
     if (nodes[0] === 'tmpNode') {
       return null
     }
 
-    return <TmpEdge nodes={nodes} isAllowed={isAllowed} />
+    return (
+      <TmpEdge
+        nodes={nodes}
+        length={length}
+        angle={angle}
+        isAllowed={isAllowed}
+        pixelsToMeters={pixelsToMeters}
+      />
+    )
   }
 
   return (
@@ -135,7 +188,7 @@ const Canvas = (props) => {
       {...coords}
       scale={scale}
       draggable
-      style={{ cursor: isDragging ? 'move' : 'default' }}
+      style={{ cursor: getCursorStyle() }}
       onDragStart={handleDragStart}
       onDragMove={handleDragMove}
       onDragEnd={handleDragEnd}
@@ -143,9 +196,8 @@ const Canvas = (props) => {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
-      onContextMenu={(e) => {
-        e.evt.preventDefault()
-      }}>
+      onContextMenu={handleContextMenu}>
+      <Grid sizes={sizes} coords={coords} scale={scale.x} />
       <Layer>
         {polygons.map((polygonNodes, polygonIndex) => {
           return (
@@ -169,14 +221,21 @@ const Canvas = (props) => {
           )
         })}
         {renderTmpEdge()}
-        {cursorTool === CURSOR_TOOL.MOVE &&
+        {cursor.tool === CURSOR_TOOL.MOVE &&
           nodes.map((node, nodeIndex) => {
+            const isHovered = isNodeHovered(nodeIndex)
+
             return (
-              <Node key={`node-${nodeIndex}`} index={nodeIndex} node={node} />
+              <Node
+                key={`node-${nodeIndex}`}
+                index={nodeIndex}
+                node={node}
+                isHovered={isHovered}
+              />
             )
           })}
-        {cursorTool === CURSOR_TOOL.DRAW_WALL && isCursorBound && (
-          <Cursor coords={getCursorCoords()} />
+        {cursor.tool === CURSOR_TOOL.DRAW_WALL && (
+          <Cursor coords={cursor.coords} />
         )}
       </Layer>
     </Stage>

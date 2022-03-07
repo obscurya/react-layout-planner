@@ -6,7 +6,7 @@ import LayoutPlanner from '../LayoutPlanner'
 const App = () => {
   return (
     <Container
-      maxWidth="xl"
+      maxWidth={false}
       disableGutters
       sx={{
         height: '100%',

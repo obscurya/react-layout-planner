@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { ButtonGroup, Tooltip } from '@mui/material'
 import { TimelineRounded, PanToolRounded } from '@mui/icons-material'
 
-import { CURSOR_TOOL } from './constants'
+import { CURSOR_TOOL, METERS_IN_PIXEL } from './constants'
 
 import { useLayoutPlanner } from '../../hooks/useLayoutPlanner'
 
@@ -16,13 +16,13 @@ const LayoutPlanner = () => {
     nodes,
     edges,
     polygons,
+    cursor,
     setCursorCoords,
-    getCursorCoords,
+    setCursorTool,
+    beginGrabbing,
+    endGrabbing,
     beginTmpEdge,
-    endTmpEdge,
-    isCursorBound,
-    cursorTool,
-    setCursorTool
+    endTmpEdge
   } = useLayoutPlanner()
 
   const [container, setContainer] = useState(null)
@@ -32,13 +32,23 @@ const LayoutPlanner = () => {
       tool: CURSOR_TOOL.DRAW_WALL,
       title: 'Draw wall',
       renderIcon: (color) => <TimelineRounded color={color} />
+    },
+    {
+      tool: CURSOR_TOOL.MOVE,
+      title: 'Move objects',
+      renderIcon: (color) => <PanToolRounded color={color} />
     }
-    // {
-    //   tool: CURSOR_TOOL.MOVE,
-    //   title: 'Move objects',
-    //   renderIcon: (color) => <PanToolRounded color={color} />
-    // }
   ]
+
+  const pixelsToMeters = (value) => {
+    const meters = value * METERS_IN_PIXEL
+
+    if (Number.isInteger(meters)) {
+      return meters
+    }
+
+    return Math.round((meters + Number.EPSILON) * 100) / 100
+  }
 
   return (
     <Styles.Container ref={setContainer}>
@@ -49,12 +59,13 @@ const LayoutPlanner = () => {
           nodes={nodes}
           edges={edges}
           polygons={polygons}
+          cursor={cursor}
           setCursorCoords={setCursorCoords}
-          getCursorCoords={getCursorCoords}
+          beginGrabbing={beginGrabbing}
+          endGrabbing={endGrabbing}
           beginTmpEdge={beginTmpEdge}
           endTmpEdge={endTmpEdge}
-          isCursorBound={isCursorBound}
-          cursorTool={cursorTool}
+          pixelsToMeters={pixelsToMeters}
         />
       )}
       <Styles.ToolsContainer>
@@ -63,7 +74,7 @@ const LayoutPlanner = () => {
           variant="outlined"
           sx={{ backgroundColor: 'white' }}>
           {tools.map(({ tool, title, renderIcon }) => {
-            const active = cursorTool === tool
+            const active = cursor.tool === tool
             const color = active ? 'primary' : 'default'
 
             const onClick = () => {
