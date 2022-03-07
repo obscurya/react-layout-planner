@@ -301,8 +301,14 @@ export const useLayoutPlanner = () => {
       return
     }
 
+    const minX = Math.min(...nodes.map(({ x }) => x))
+    const minY = Math.min(...nodes.map(({ y }) => y))
+
+    const addX = minX < 0 ? -minX : 0
+    const addY = minY < 0 ? -minY : 0
+
     const polygonsTree = getAreaTree(
-      nodes.map(({ x, y }) => [x, y]),
+      nodes.map(({ x, y }) => [x + addX, y + addY]),
       edges
     )
 

@@ -37,7 +37,10 @@ const Canvas = (props) => {
   const [gridCursorCoords, setGridCursorCoords] = useState({ x: 0, y: 0 })
 
   const bindCursorToGrid = (callback) => {
-    const position = stage?.getRelativePointerPosition() || { x: 0, y: 0 }
+    const position =
+      stage && 'pointerPos' in stage
+        ? stage.getRelativePointerPosition()
+        : { x: 0, y: 0 }
     const coords = callback(position)
 
     if (coords.x === gridCursorCoords.x && coords.y === gridCursorCoords.y) {
