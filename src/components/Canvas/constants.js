@@ -28,13 +28,15 @@ export const POLYGON_COLORS = [...new Array(100)].map(() => {
   return getRandomColor()
 })
 
+const FONT_SIZE = EDGE_WIDTH / 1.5
+
 export const FONT_CONFIG = {
-  height: 3,
-  fontSize: EDGE_WIDTH - 2,
+  fontSize: FONT_SIZE,
+  height: FONT_SIZE / 1.7,
   fontFamily: 'monospace',
   fill: palette.grey[900],
   align: 'center',
-  verticalAlign: 'middle'
+  verticalAlign: 'bottom'
 }
 
 export const TMP_EDGE_COLOR_ALLOWED = palette.lightGreen[300]

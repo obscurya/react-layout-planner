@@ -1,11 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
+import useResizeObserver from '@react-hook/resize-observer'
 import { Stage, Layer } from 'react-konva'
 import Konva from 'konva'
 
 import { CURSOR_TOOL } from '../LayoutPlanner/constants'
 import { STAGE_SCALE_STEP } from './constants'
 
-import { Grid, Cursor, Node, Edge, Polygon, TmpEdge } from './shapes'
+import {
+  Grid,
+  Cursor,
+  Node,
+  EdgeFilling,
+  Polygon,
+  TmpEdge,
+  EdgeBorders,
+  EdgeMeasurement
+} from './shapes'
 
 Konva.dragButtons = [2]
 Konva.angleDeg = false
@@ -28,13 +38,19 @@ const Canvas = (props) => {
 
   const [stage, setStage] = useState(null)
   const [sizes, setSizes] = useState({
-    width: container.clientWidth,
-    height: container.clientHeight
+    width: 0,
+    height: 0
   })
   const [coords, setCoords] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [scale, setScale] = useState({ x: 1, y: 1 })
   const [gridCursorCoords, setGridCursorCoords] = useState({ x: 0, y: 0 })
+
+  useResizeObserver(container, (entry) => {
+    const { width, height } = entry.contentRect
+
+    setSizes({ width, height })
+  })
 
   const bindCursorToGrid = (callback) => {
     const position =
@@ -49,23 +65,6 @@ const Canvas = (props) => {
 
     setGridCursorCoords(coords)
   }
-
-  const resizeCanvas = () => {
-    setSizes({
-      width: container.clientWidth,
-      height: container.clientHeight
-    })
-  }
-
-  const resizeCanvasEffect = () => {
-    window.onresize = resizeCanvas
-
-    return () => {
-      window.onresize = null
-    }
-  }
-
-  useEffect(resizeCanvasEffect, [])
 
   const handleMouseMove = () => {
     // const { x, y } = stage.getRelativePointerPosition()
@@ -229,15 +228,25 @@ const Canvas = (props) => {
             />
           )
         })}
-        {edges.map(({ nodes, length, angle, shape }, edgeIndex) => {
+        {edges.map(({ points }, edgeIndex) => {
           return (
-            <Edge
-              key={`edge-${edgeIndex}`}
-              index={edgeIndex}
+            <EdgeFilling key={`edge-filling-${edgeIndex}`} points={points} />
+          )
+        })}
+        {edges.map(({ borders }, edgeIndex) => {
+          return (
+            <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
+          )
+        })}
+        {edges.map(({ nodes, angle, length, borders }, edgeIndex) => {
+          return (
+            <EdgeMeasurement
+              key={`edge-measurement-${edgeIndex}`}
               nodes={nodes}
-              length={length}
               angle={angle}
-              shape={shape}
+              length={length}
+              borders={borders}
+              pixelsToMeters={pixelsToMeters}
             />
           )
         })}

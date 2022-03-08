@@ -1,26 +1,19 @@
 import React from 'react'
-import { Group, Line, Text } from 'react-konva'
+import { Group, Line } from 'react-konva'
 
 import {
   EDGE_WIDTH,
   TMP_EDGE_COLOR_ALLOWED,
-  TMP_EDGE_COLOR_NOT_ALLOWED,
-  FONT_CONFIG
+  TMP_EDGE_COLOR_NOT_ALLOWED
 } from '../constants'
+
+import { EdgeText } from './'
 
 const TmpEdge = (props) => {
   const { nodes, length, angle, isAllowed, pixelsToMeters } = props
 
   const color = isAllowed ? TMP_EDGE_COLOR_ALLOWED : TMP_EDGE_COLOR_NOT_ALLOWED
   const [n1, n2] = nodes
-
-  let textAngle = angle
-  let textCoords = n1
-
-  if (angle > Math.PI / 2 && angle < 3 * (Math.PI / 2)) {
-    textAngle += Math.PI
-    textCoords = n2
-  }
 
   return (
     <Group>
@@ -30,12 +23,10 @@ const TmpEdge = (props) => {
         stroke={color}
         lineCap="round"
       />
-      <Text
+      <EdgeText
         text={`≈${pixelsToMeters(length)}m`}
-        width={length}
-        rotation={textAngle}
-        {...textCoords}
-        {...FONT_CONFIG}
+        nodes={nodes}
+        angle={angle}
       />
     </Group>
   )
