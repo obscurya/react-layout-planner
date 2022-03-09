@@ -544,117 +544,109 @@ export const useLayoutPlanner = () => {
           const edgeAngle = getEdgeAngle(edge, nodeIndex !== edge[0])
 
           const cutCorner = () => {
-            const angle1 = edgeAngle + Math.PI / 2
-            const angle2 = edgeAngle - Math.PI / 2
-
             return [
-              [
-                {
-                  x: node.x + HALF_EDGE_WIDTH * Math.cos(angle1),
-                  y: node.y + HALF_EDGE_WIDTH * Math.sin(angle1)
-                }
-              ],
-              [
-                {
-                  x: node.x + HALF_EDGE_WIDTH * Math.cos(angle2),
-                  y: node.y + HALF_EDGE_WIDTH * Math.sin(angle2)
-                }
-              ]
+              ...points,
+              ...[Math.PI / 2, -Math.PI / 2].map((angle) => {
+                return [
+                  {
+                    x: node.x + HALF_EDGE_WIDTH * Math.cos(edgeAngle + angle),
+                    y: node.y + HALF_EDGE_WIDTH * Math.sin(edgeAngle + angle)
+                  }
+                ]
+              })
             ]
           }
 
           if (!neighborNodes.length) {
             // у вершины нет соседних вершин, рубим край ребра
-            return [...points, ...cutCorner()]
+            return cutCorner()
           }
 
-          const getCornerPoints = (angleBetweenEdges, absolute = false) => {
-            if (Math.abs(angleBetweenEdges) < MIN_CORNER_ANGLE) {
-              return cutCorner()
+          const getAngles = () => {
+            const neighborAngles = neighborNodes.map((neighborNodeIndex) => {
+              const neighborEdgeAngle = getEdgeAngle([
+                nodeIndex,
+                neighborNodeIndex
+              ])
+
+              return edgeAngle - neighborEdgeAngle
+            })
+
+            const getNearestNeighborAngles = () => {
+              if (neighborAngles.length === 1) {
+                const [angle1] = neighborAngles
+                const angle2 = -(Math.PI * 2 - angle1)
+
+                if (angle1 >= 0) {
+                  return [angle2, angle1]
+                }
+
+                return [angle1, angle2]
+              }
+
+              const positiveAngles = neighborAngles
+                .filter((angle) => {
+                  return angle >= 0
+                })
+                .sort((a, b) => a - b)
+              const [fpa] = positiveAngles
+              const [lpa] =
+                positiveAngles.length > 1 ? positiveAngles.slice(-1) : [null]
+
+              const negativeAngles = neighborAngles
+                .filter((angle) => {
+                  return angle < 0
+                })
+                .sort((a, b) => b - a)
+              const [fna] = negativeAngles
+
+              if (fpa) {
+                return [fna || -(Math.PI * 2 - lpa), fpa]
+              }
+
+              const [lna] = negativeAngles.slice(-1)
+
+              return [fna, Math.PI * 2 + lna]
             }
 
-            const halfAngleBetweenEdges = angleBetweenEdges / 2
-            const sinAngle = Math.sin(
-              absolute ? Math.abs(halfAngleBetweenEdges) : halfAngleBetweenEdges
-            )
-            const distance = HALF_EDGE_WIDTH / sinAngle
-            const pointAngle = edgeAngle - halfAngleBetweenEdges
-            const oppositePointAngle = pointAngle + Math.PI
+            const angles = getNearestNeighborAngles()
+            const doesSmallAngleExists = angles.filter((angle) => {
+              return Math.abs(angle) < MIN_CORNER_ANGLE
+            }).length
 
-            return [
-              {
-                x: node.x + distance * Math.cos(oppositePointAngle),
-                y: node.y + distance * Math.sin(oppositePointAngle)
-              },
-              {
-                x: node.x + distance * Math.cos(pointAngle),
-                y: node.y + distance * Math.sin(pointAngle)
-              }
-            ]
+            if (doesSmallAngleExists) {
+              return null
+            }
+
+            return angles
           }
+
+          const angles = getAngles()
+
+          if (!angles) {
+            return cutCorner()
+          }
+
+          const getCornerPoint = (angle) => {
+            const halfAngle = angle / 2
+            const distance = Math.abs(HALF_EDGE_WIDTH / Math.sin(halfAngle))
+            const pointAngle = edgeAngle - halfAngle
+
+            return {
+              x: node.x + distance * Math.cos(pointAngle),
+              y: node.y + distance * Math.sin(pointAngle)
+            }
+          }
+
+          const cornerPoints = angles.map((angle) => {
+            return getCornerPoint(angle)
+          })
 
           if (neighborNodes.length === 1) {
-            const neighborEdgeAngle = getEdgeAngle([
-              nodeIndex,
-              neighborNodes[0]
-            ])
-            const cornerPoints = getCornerPoints(edgeAngle - neighborEdgeAngle)
-
-            if (cornerPoints[0][0]) {
-              return [...points, ...cornerPoints]
-            }
-
             return [...points, cornerPoints]
           }
 
-          const allAngles = neighborNodes.map((neighborNodeIndex) => {
-            const neighborEdgeAngle = getEdgeAngle([
-              nodeIndex,
-              neighborNodeIndex
-            ])
-
-            return edgeAngle - neighborEdgeAngle
-          })
-
-          const positiveAngles = allAngles
-            .filter((angle) => {
-              return angle >= 0
-            })
-            .sort((a, b) => a - b)
-          const [fpa] = positiveAngles
-          const [lpa] =
-            positiveAngles.length > 1 ? positiveAngles.slice(-1) : [null]
-
-          const negativeAngles = allAngles
-            .filter((angle) => {
-              return angle < 0
-            })
-            .sort((a, b) => b - a)
-          const [fna] = negativeAngles
-          const [lna] =
-            negativeAngles.length > 1 ? negativeAngles.slice(-1) : [null]
-
-          const angles = [fpa || fna]
-
-          if (angles[0] === fpa) {
-            angles.unshift(fna || -(Math.PI * 2 - lpa))
-          } else {
-            angles.push(Math.PI * 2 + lna)
-          }
-
-          if (
-            angles.filter((angle) => {
-              return Math.abs(angle) < MIN_CORNER_ANGLE
-            }).length
-          ) {
-            return [...points, ...cutCorner()]
-          }
-
-          const [p1, p2] = angles.map((angle) => {
-            const cornerPoints = getCornerPoints(angle, true)
-
-            return cornerPoints[1]
-          })
+          const [p1, p2] = cornerPoints
 
           return [...points, [p1, node, p2]]
         },
