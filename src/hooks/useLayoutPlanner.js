@@ -203,63 +203,69 @@ export const useLayoutPlanner = () => {
     const newNodes = [...nodes, ...nodesToAdd]
 
     setNodes(newNodes)
-    setEdges([
-      ...edges.reduce((newEdges, edge) => {
-        const [p1, p2] = getEdgeNodes(edge)
-        const commonNodeIndex = getEdgesCommonNodeIndex(edge, edgeToAdd)
+    setEdges(
+      edges.reduce(
+        (newEdges, edge) => {
+          const [p1, p2] = getEdgeNodes(edge)
+          const commonNodeIndex = getEdgesCommonNodeIndex(edge, edgeToAdd)
 
-        if (commonNodeIndex !== null) {
-          // у нового ребра есть общая вершина с текущим ребром
-          const edgeToAddNodeIndex =
-            edgeToAdd[0] === commonNodeIndex ? edgeToAdd[1] : edgeToAdd[0]
-          const edgeToAddNode = newNodes[edgeToAddNodeIndex]
+          if (commonNodeIndex !== null) {
+            // у нового ребра есть общая вершина с текущим ребром
+            const edgeToAddNodeIndex =
+              edgeToAdd[0] === commonNodeIndex ? edgeToAdd[1] : edgeToAdd[0]
+            const edgeToAddNode = newNodes[edgeToAddNodeIndex]
 
-          if (linePointCollision({ p1, p2 }, edgeToAddNode)) {
-            // другая вершина нового ребра лежит на текущем ребре
-            const edgeNodeIndex =
-              edge[0] === commonNodeIndex ? edge[1] : edge[0]
+            if (linePointCollision({ p1, p2 }, edgeToAddNode)) {
+              // другая вершина нового ребра лежит на текущем ребре
+              const edgeNodeIndex =
+                edge[0] === commonNodeIndex ? edge[1] : edge[0]
 
-            return [...newEdges, [edgeNodeIndex, edgeToAddNodeIndex]]
-          } else {
+              return [...newEdges, [edgeNodeIndex, edgeToAddNodeIndex]]
+            } else {
+              return [...newEdges, edge]
+            }
+          }
+
+          // общей вершины нет
+          // проверяем, лежат ли новые вершины на текущем ребре,
+          // для дальнейшего разбиения текущего ребра на несколько частей -
+          // пополам или на две отдельные части
+
+          const collidingNodesIndexes = getNodesIndexesCollidingWithEdge(
+            edge,
+            nodesToAdd
+          )
+
+          if (!collidingNodesIndexes.length) {
+            // ни одна новая вершина не лежит на текущем ребре
             return [...newEdges, edge]
           }
-        }
 
-        // общей вершины нет
-        // проверяем, лежат ли новые вершины на текущем ребре,
-        // для дальнейшего разбиения текущего ребра на несколько частей -
-        // пополам или на две отдельные части
+          if (collidingNodesIndexes.length === 1) {
+            // одна вершина нового ребра внутри существующего ребра
+            const nodeIndex = nodes.length + collidingNodesIndexes[0]
 
-        const collidingNodesIndexes = getNodesIndexesCollidingWithEdge(
-          edge,
-          nodesToAdd
-        )
+            return [...newEdges, [edge[0], nodeIndex], [nodeIndex, edge[1]]]
+          }
 
-        if (!collidingNodesIndexes.length) {
-          // ни одна новая вершина не лежит на текущем ребре
-          return [...newEdges, edge]
-        }
+          // новое ребро полностью внутри существующего ребра
+          const [d1, d2] = nodesToAdd.map((node) => {
+            return getDistanceBetweenPoints(p1, node)
+          })
 
-        if (collidingNodesIndexes.length === 1) {
-          // одна вершина нового ребра внутри существующего ребра
-          const nodeIndex = nodes.length + collidingNodesIndexes[0]
+          if (d1 < d2) {
+            return [
+              ...newEdges,
+              [edge[0], edgeToAdd[0]],
+              [edge[1], edgeToAdd[1]]
+            ]
+          }
 
-          return [...newEdges, [edge[0], nodeIndex], [nodeIndex, edge[1]]]
-        }
-
-        // новое ребро полностью внутри существующего ребра
-        const [d1, d2] = nodesToAdd.map((node) => {
-          return getDistanceBetweenPoints(p1, node)
-        })
-
-        if (d1 < d2) {
-          return [...newEdges, [edge[0], edgeToAdd[0]], [edge[1], edgeToAdd[1]]]
-        }
-
-        return [...newEdges, [edge[0], edgeToAdd[1]], [edge[1], edgeToAdd[0]]]
-      }, []),
-      edgeToAdd
-    ])
+          return [...newEdges, [edge[0], edgeToAdd[1]], [edge[1], edgeToAdd[0]]]
+        },
+        [edgeToAdd]
+      )
+    )
   }
 
   const getPolygonNodes = (polygon) => {
@@ -533,125 +539,115 @@ export const useLayoutPlanner = () => {
     }
   }
 
+  const createShapedEdge = (edge) => {
+    return Object.entries(getEdgeNodesNeighborNodes(edge)).reduce(
+      (points, [nodeIndexStr, neighborNodes]) => {
+        const nodeIndex = Number(nodeIndexStr)
+        const node = nodes[nodeIndex]
+        const edgeAngle = getEdgeAngle(edge, nodeIndex !== edge[0]) // угол самого ребра
+
+        // добавляет точки под прямыми углами по часовой и против часовой
+        // (+Math.PI / 2, -Math.PI / 2)
+        // если вершина не связана с другими ребрами
+        // или не выполняются условия (маленький угол)
+        const cutCorner = () => {
+          return [
+            ...points,
+            ...[Math.PI / 2, -Math.PI / 2].map((angle) => {
+              return [
+                {
+                  x: node.x + HALF_EDGE_WIDTH * Math.cos(edgeAngle + angle),
+                  y: node.y + HALF_EDGE_WIDTH * Math.sin(edgeAngle + angle)
+                }
+              ]
+            })
+          ]
+        }
+
+        if (!neighborNodes.length) {
+          // у вершины нет соседних вершин, рубим край ребра
+          return cutCorner()
+        }
+
+        // определяем углы между ребром и соседними ребрами (два угла)
+        const getCornerAngles = () => {
+          // углы со всеми соседними ребрами
+          const neighborAngles = neighborNodes.map((neighborNodeIndex) => {
+            const neighborEdgeAngle = getEdgeAngle([
+              nodeIndex,
+              neighborNodeIndex
+            ])
+
+            return edgeAngle - neighborEdgeAngle
+          })
+          // углы по часовой стрелке
+          const clockwiseAngles = neighborAngles
+            .filter((angle) => {
+              return angle >= 0
+            })
+            .sort((a, b) => a - b)
+          // углы против часовой стрелке
+          const counterClockwiseAngles = neighborAngles
+            .filter((angle) => {
+              return angle < 0
+            })
+            .sort((a, b) => b - a)
+          const minClockwiseAngle =
+            clockwiseAngles[0] ||
+            counterClockwiseAngles.slice(-1)[0] + Math.PI * 2
+          const maxCounterClockwiseAngle =
+            counterClockwiseAngles[0] ||
+            clockwiseAngles.slice(-1)[0] - Math.PI * 2
+          const angles = [minClockwiseAngle, maxCounterClockwiseAngle]
+
+          return angles.sort((a, b) => a - b)
+        }
+
+        const cornerAngles = getCornerAngles()
+        const doesSmallAngleExists = cornerAngles.filter((angle) => {
+          return Math.abs(angle) < MIN_CORNER_ANGLE
+        }).length
+
+        if (doesSmallAngleExists) {
+          // есть маленький угол, обрезаем край ребра
+          return cutCorner()
+        }
+
+        // определяем угловую точку для построения границы
+        const getCornerPoint = (angle) => {
+          const halfAngle = angle / 2
+          const distance = Math.abs(HALF_EDGE_WIDTH / Math.sin(halfAngle))
+          const pointAngle = edgeAngle - halfAngle
+
+          return {
+            x: node.x + distance * Math.cos(pointAngle),
+            y: node.y + distance * Math.sin(pointAngle)
+          }
+        }
+
+        // формируем угловые точки, описывающие границу
+        const cornerPoints = cornerAngles.map((angle) => {
+          return getCornerPoint(angle)
+        })
+
+        if (neighborNodes.length === 1) {
+          return [...points, cornerPoints]
+        }
+
+        // несколько соседних ребер, надо добавить точку
+        // для образования "треугольника" на конце ребра
+
+        const [p1, p2] = cornerPoints
+
+        return [...points, [p1, node, p2]]
+      },
+      []
+    )
+  }
+
   const createShapedEdgesEffect = () => {
     const shapedEdges = edges.map((edge) => {
-      return Object.entries(getEdgeNodesNeighborNodes(edge)).reduce(
-        (points, [nodeIndexStr, neighborNodes]) => {
-          // TODO: добавить комментарии...
-
-          const nodeIndex = Number(nodeIndexStr)
-          const node = nodes[nodeIndex]
-          const edgeAngle = getEdgeAngle(edge, nodeIndex !== edge[0])
-
-          const cutCorner = () => {
-            return [
-              ...points,
-              ...[Math.PI / 2, -Math.PI / 2].map((angle) => {
-                return [
-                  {
-                    x: node.x + HALF_EDGE_WIDTH * Math.cos(edgeAngle + angle),
-                    y: node.y + HALF_EDGE_WIDTH * Math.sin(edgeAngle + angle)
-                  }
-                ]
-              })
-            ]
-          }
-
-          if (!neighborNodes.length) {
-            // у вершины нет соседних вершин, рубим край ребра
-            return cutCorner()
-          }
-
-          const getAngles = () => {
-            const neighborAngles = neighborNodes.map((neighborNodeIndex) => {
-              const neighborEdgeAngle = getEdgeAngle([
-                nodeIndex,
-                neighborNodeIndex
-              ])
-
-              return edgeAngle - neighborEdgeAngle
-            })
-
-            const getNearestNeighborAngles = () => {
-              if (neighborAngles.length === 1) {
-                const [angle1] = neighborAngles
-                const angle2 = -(Math.PI * 2 - angle1)
-
-                if (angle1 >= 0) {
-                  return [angle2, angle1]
-                }
-
-                return [angle1, angle2]
-              }
-
-              const positiveAngles = neighborAngles
-                .filter((angle) => {
-                  return angle >= 0
-                })
-                .sort((a, b) => a - b)
-              const [fpa] = positiveAngles
-              const [lpa] =
-                positiveAngles.length > 1 ? positiveAngles.slice(-1) : [null]
-
-              const negativeAngles = neighborAngles
-                .filter((angle) => {
-                  return angle < 0
-                })
-                .sort((a, b) => b - a)
-              const [fna] = negativeAngles
-
-              if (fpa) {
-                return [fna || -(Math.PI * 2 - lpa), fpa]
-              }
-
-              const [lna] = negativeAngles.slice(-1)
-
-              return [fna, Math.PI * 2 + lna]
-            }
-
-            const angles = getNearestNeighborAngles()
-            const doesSmallAngleExists = angles.filter((angle) => {
-              return Math.abs(angle) < MIN_CORNER_ANGLE
-            }).length
-
-            if (doesSmallAngleExists) {
-              return null
-            }
-
-            return angles
-          }
-
-          const angles = getAngles()
-
-          if (!angles) {
-            return cutCorner()
-          }
-
-          const getCornerPoint = (angle) => {
-            const halfAngle = angle / 2
-            const distance = Math.abs(HALF_EDGE_WIDTH / Math.sin(halfAngle))
-            const pointAngle = edgeAngle - halfAngle
-
-            return {
-              x: node.x + distance * Math.cos(pointAngle),
-              y: node.y + distance * Math.sin(pointAngle)
-            }
-          }
-
-          const cornerPoints = angles.map((angle) => {
-            return getCornerPoint(angle)
-          })
-
-          if (neighborNodes.length === 1) {
-            return [...points, cornerPoints]
-          }
-
-          const [p1, p2] = cornerPoints
-
-          return [...points, [p1, node, p2]]
-        },
-        []
-      )
+      return createShapedEdge(edge)
     })
 
     setShapedEdges(shapedEdges)
