@@ -1,7 +1,10 @@
 export const ACCURACY = 0.0001
 
 export const getDistanceBetweenPoints = (p1, p2) => {
-  return Math.hypot(p1.x - p2.x, p1.y - p2.y)
+  const dx = p1.x - p2.x
+  const dy = p1.y - p2.y
+
+  return Math.sqrt(dx ** 2 + dy ** 2)
 }
 
 export const getAngleBetweenPoints = (p1, p2) => {
@@ -38,6 +41,10 @@ export const isValuePositive = (value) => {
   return Math.sign(value) > 0
 }
 
+export const areValuesEqual = (value1, value2) => {
+  return Math.abs(value1 - value2) < ACCURACY
+}
+
 export const arePointsEqual = (p1, p2) => {
-  return Math.abs(p1.x - p2.x) < ACCURACY && Math.abs(p1.y - p2.y) < ACCURACY
+  return areValuesEqual(p1.x, p2.x) && areValuesEqual(p1.y, p2.y)
 }

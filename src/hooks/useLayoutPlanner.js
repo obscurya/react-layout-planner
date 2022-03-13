@@ -5,17 +5,19 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
 
+import { CURSOR_TOOL } from '../components/LayoutPlanner/constants'
 import {
-  CURSOR_TOOL,
-  MIN_CORNER_ANGLE
-} from '../components/LayoutPlanner/constants'
-import { CURSOR_RADIUS, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
+  CURSOR_RADIUS,
+  EDGE_WIDTH,
+  HALF_EDGE_WIDTH
+} from '../components/Canvas/constants'
 
 import {
   isValuePositive,
   getDistanceBetweenPoints,
   arePointsEqual,
-  getAngleBetweenPoints
+  getAngleBetweenPoints,
+  areValuesEqual
 } from '../helpers'
 
 import {
@@ -24,6 +26,18 @@ import {
   linePointCollision,
   lineLineCollision
 } from '../helpers/collision'
+
+const getRandomWallWidth = () => {
+  // const widths = [...new Array(5)].map((_, i) => {
+  //   return HALF_EDGE_WIDTH * (i + 1)
+  // })
+
+  const widths = [EDGE_WIDTH]
+
+  return widths[Math.floor(Math.random() * widths.length)]
+}
+
+const RIGHT_ANGLES = [Math.PI / 2, -Math.PI / 2] // прямые углы
 
 const initialState = {
   cursor: {
@@ -39,7 +53,8 @@ const initialState = {
   edges: [],
   shapedEdges: [],
   grabbedObject: null,
-  polygons: []
+  polygons: [],
+  walls: []
 }
 
 export const useLayoutPlanner = () => {
@@ -50,6 +65,7 @@ export const useLayoutPlanner = () => {
   const [shapedEdges, setShapedEdges] = useState(initialState.shapedEdges)
   const [grabbedObject, setGrabbedObject] = useState(initialState.grabbedObject)
   const [polygons, setPolygons] = useState(initialState.polygons)
+  const [walls, setWalls] = useState(initialState.walls)
 
   /* CURSOR FUNCTIONS */
 
@@ -540,11 +556,29 @@ export const useLayoutPlanner = () => {
   }
 
   const createShapedEdge = (edge) => {
+    const wall = getWallByEdge(edge)
+    const halfEdgeWidth = wall ? wall.width / 2 : HALF_EDGE_WIDTH
+
+    const movePointDistanceAngle = (point, distance, angle) => {
+      return {
+        x: point.x + distance * Math.cos(angle),
+        y: point.y + distance * Math.sin(angle)
+      }
+    }
+
     return Object.entries(getEdgeNodesNeighborNodes(edge)).reduce(
       (points, [nodeIndexStr, neighborNodes]) => {
         const nodeIndex = Number(nodeIndexStr)
         const node = nodes[nodeIndex]
         const edgeAngle = getEdgeAngle(edge, nodeIndex !== edge[0]) // угол самого ребра
+
+        const getRightAnglePoint = (rightAngle) => {
+          return movePointDistanceAngle(
+            node,
+            halfEdgeWidth,
+            edgeAngle + rightAngle
+          )
+        }
 
         // добавляет точки под прямыми углами по часовой и против часовой
         // (+Math.PI / 2, -Math.PI / 2)
@@ -553,13 +587,8 @@ export const useLayoutPlanner = () => {
         const cutCorner = () => {
           return [
             ...points,
-            ...[Math.PI / 2, -Math.PI / 2].map((angle) => {
-              return [
-                {
-                  x: node.x + HALF_EDGE_WIDTH * Math.cos(edgeAngle + angle),
-                  y: node.y + HALF_EDGE_WIDTH * Math.sin(edgeAngle + angle)
-                }
-              ]
+            ...RIGHT_ANGLES.map((rightAngle) => {
+              return [getRightAnglePoint(rightAngle)]
             })
           ]
         }
@@ -569,73 +598,106 @@ export const useLayoutPlanner = () => {
           return cutCorner()
         }
 
+        // соседние ребра
+        const neighborEdges = neighborNodes.map((neighborNodeIndex) => {
+          const neighborEdge = [nodeIndex, neighborNodeIndex]
+
+          return neighborEdge
+        })
+
+        // углы соседних ребер (или направления соседних ребер)
+        const neighborAngles = neighborEdges.map((neighborEdge) => {
+          const neighborEdgeAngle = getEdgeAngle(neighborEdge)
+
+          return neighborEdgeAngle
+        })
+
+        // углы между текущим ребром и соседними ребрами
+        const edgeAnglesBetweenNeighbors = neighborAngles.map(
+          (neighborAngle, neighborIndex) => {
+            return { neighborIndex, angle: edgeAngle - neighborAngle }
+          }
+        )
+
         // определяем углы между ребром и соседними ребрами (два угла)
         const getCornerAngles = () => {
-          // углы со всеми соседними ребрами
-          const neighborAngles = neighborNodes.map((neighborNodeIndex) => {
-            const neighborEdgeAngle = getEdgeAngle([
-              nodeIndex,
-              neighborNodeIndex
-            ])
-
-            return edgeAngle - neighborEdgeAngle
-          })
           // углы по часовой стрелке
-          const clockwiseAngles = neighborAngles
-            .filter((angle) => {
+          const clockwiseAngles = edgeAnglesBetweenNeighbors
+            .filter(({ angle }) => {
               return angle >= 0
             })
-            .sort((a, b) => a - b)
-          // углы против часовой стрелке
-          const counterClockwiseAngles = neighborAngles
-            .filter((angle) => {
+            .sort((a, b) => a.angle - b.angle)
+          // углы против часовой стрелки
+          const counterClockwiseAngles = edgeAnglesBetweenNeighbors
+            .filter(({ angle }) => {
               return angle < 0
             })
-            .sort((a, b) => b - a)
-          const minClockwiseAngle =
-            clockwiseAngles[0] ||
-            counterClockwiseAngles.slice(-1)[0] + Math.PI * 2
-          const maxCounterClockwiseAngle =
-            counterClockwiseAngles[0] ||
-            clockwiseAngles.slice(-1)[0] - Math.PI * 2
+            .sort((a, b) => b.angle - a.angle)
+          const [lastClockwiseAngle] = clockwiseAngles.slice(-1)
+          const [lastCounterClockwiseAngle] = counterClockwiseAngles.slice(-1)
+          const minClockwiseAngle = clockwiseAngles[0] || {
+            ...lastCounterClockwiseAngle,
+            angle: lastCounterClockwiseAngle.angle + Math.PI * 2
+          }
+          const maxCounterClockwiseAngle = counterClockwiseAngles[0] || {
+            ...lastClockwiseAngle,
+            angle: lastClockwiseAngle.angle - Math.PI * 2
+          }
           const angles = [minClockwiseAngle, maxCounterClockwiseAngle]
 
-          return angles.sort((a, b) => a - b)
+          return angles.sort((a, b) => a.angle - b.angle)
         }
 
         const cornerAngles = getCornerAngles()
-        const doesSmallAngleExists = cornerAngles.filter((angle) => {
-          return Math.abs(angle) < MIN_CORNER_ANGLE
-        }).length
-
-        if (doesSmallAngleExists) {
-          // есть маленький угол, обрезаем край ребра
-          return cutCorner()
-        }
 
         // определяем угловую точку для построения границы
-        const getCornerPoint = (angle) => {
-          const halfAngle = angle / 2
-          const distance = Math.abs(HALF_EDGE_WIDTH / Math.sin(halfAngle))
-          const pointAngle = edgeAngle - halfAngle
+        const getCornerPoint = ({ neighborIndex, angle }, cornerIndex) => {
+          const _angle = angle >= 0 ? Math.PI - angle : angle - Math.PI
+          const sinAngle = Math.sin(_angle)
 
-          return {
-            x: node.x + distance * Math.cos(pointAngle),
-            y: node.y + distance * Math.sin(pointAngle)
+          if (areValuesEqual(Math.abs(sinAngle), 0)) {
+            const rightAngle = RIGHT_ANGLES[cornerIndex]
+
+            return getRightAnglePoint(rightAngle)
           }
+
+          const neighborWall = getWallByEdge(neighborEdges[neighborIndex])
+          const neighborHalfEdgeWidth = neighborWall
+            ? neighborWall.width / 2
+            : HALF_EDGE_WIDTH
+
+          return [
+            [neighborHalfEdgeWidth, edgeAngle],
+            [halfEdgeWidth, neighborAngles[neighborIndex]]
+          ].reduce((point, [halfEdgeWidth, angle]) => {
+            const distance = halfEdgeWidth / sinAngle
+
+            return movePointDistanceAngle(point, distance, angle)
+          }, node)
         }
 
         // формируем угловые точки, описывающие границу
-        const cornerPoints = cornerAngles.map((angle) => {
-          return getCornerPoint(angle)
+        const cornerPoints = cornerAngles.map((cornerAngle, cornerIndex) => {
+          return getCornerPoint(cornerAngle, cornerIndex)
         })
 
-        if (neighborNodes.length === 1) {
-          return [...points, cornerPoints]
-        }
+        const doesBigCornerExist =
+          cornerPoints.filter((cornerPoint) => {
+            const edgesLengths = [edge, ...neighborEdges].map((edge) => {
+              return getEdgeLength(edge)
+            })
+            const cornerLength = getDistanceBetweenPoints(node, cornerPoint)
+            const isCornerBiggerThanAnyEdge =
+              edgesLengths.filter((edgeLength) => {
+                return cornerLength > edgeLength
+              }).length > 0
 
-        // несколько соседних ребер, надо добавить точку
-        // для образования "треугольника" на конце ребра
+            return isCornerBiggerThanAnyEdge
+          }).length > 0
+
+        if (doesBigCornerExist) {
+          return cutCorner()
+        }
 
         const [p1, p2] = cornerPoints
 
@@ -653,7 +715,7 @@ export const useLayoutPlanner = () => {
     setShapedEdges(shapedEdges)
   }
 
-  useEffect(createShapedEdgesEffect, [nodes, edges])
+  useEffect(createShapedEdgesEffect, [nodes, walls])
 
   const moveGrabbedObjectEffect = () => {
     if (!grabbedObject) {
@@ -688,11 +750,40 @@ export const useLayoutPlanner = () => {
 
   useEffect(moveGrabbedObjectEffect, [cursor, nodes, grabbedObject])
 
+  const getWallByEdge = (edge) => {
+    return walls.find((wall) => {
+      return (
+        (wall.nodes[0] === edge[0] && wall.nodes[1] === edge[1]) ||
+        (wall.nodes[0] === edge[1] && wall.nodes[1] === edge[0])
+      )
+    })
+  }
+
+  const setWallsEffect = () => {
+    const walls = edges.map((edge) => {
+      const wall = getWallByEdge(edge)
+
+      return (
+        wall || {
+          nodes: edge,
+          width: getRandomWallWidth()
+        }
+      )
+    })
+
+    setWalls(walls)
+  }
+
+  useEffect(setWallsEffect, [edges])
+
   const getEdgeData = (edge) => {
+    const wall = getWallByEdge(edge)
+
     return {
       nodes: getEdgeNodes(edge),
       length: getEdgeLength(edge),
-      angle: getEdgeAngle(edge)
+      angle: getEdgeAngle(edge),
+      width: wall ? wall.width : EDGE_WIDTH
     }
   }
 
