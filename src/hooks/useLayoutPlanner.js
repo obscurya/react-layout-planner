@@ -31,7 +31,6 @@ const getRandomWallWidth = () => {
   // const widths = [...new Array(5)].map((_, i) => {
   //   return HALF_EDGE_WIDTH * (i + 1)
   // })
-
   const widths = [EDGE_WIDTH]
 
   return widths[Math.floor(Math.random() * widths.length)]
@@ -600,16 +599,12 @@ export const useLayoutPlanner = () => {
 
         // соседние ребра
         const neighborEdges = neighborNodes.map((neighborNodeIndex) => {
-          const neighborEdge = [nodeIndex, neighborNodeIndex]
-
-          return neighborEdge
+          return [nodeIndex, neighborNodeIndex]
         })
 
         // углы соседних ребер (или направления соседних ребер)
         const neighborAngles = neighborEdges.map((neighborEdge) => {
-          const neighborEdgeAngle = getEdgeAngle(neighborEdge)
-
-          return neighborEdgeAngle
+          return getEdgeAngle(neighborEdge)
         })
 
         // углы между текущим ребром и соседними ребрами
@@ -619,7 +614,9 @@ export const useLayoutPlanner = () => {
           }
         )
 
-        // определяем углы между ребром и соседними ребрами (два угла)
+        // определяем два угла между ребром
+        // и ближайшими соседними ребрами
+        // (по часовой и против часовой)
         const getCornerAngles = () => {
           // углы по часовой стрелке
           const clockwiseAngles = edgeAnglesBetweenNeighbors

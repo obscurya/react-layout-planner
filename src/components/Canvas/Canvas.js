@@ -238,19 +238,6 @@ const Canvas = (props) => {
             <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
           )
         })}
-        {edges.map(({ nodes, angle, length, borders }, edgeIndex) => {
-          return (
-            <EdgeMeasurement
-              key={`edge-measurement-${edgeIndex}`}
-              nodes={nodes}
-              angle={angle}
-              length={length}
-              borders={borders}
-              pixelsToMeters={pixelsToMeters}
-            />
-          )
-        })}
-        {renderTmpEdge()}
         {cursor.tool === CURSOR_TOOL.MOVE &&
           nodes.map((node, nodeIndex) => {
             const isHovered = isNodeHovered(nodeIndex)
@@ -264,6 +251,16 @@ const Canvas = (props) => {
               />
             )
           })}
+        {edges.map(({ borders }, edgeIndex) => {
+          return (
+            <EdgeMeasurement
+              key={`edge-measurement-${edgeIndex}`}
+              borders={borders}
+              pixelsToMeters={pixelsToMeters}
+            />
+          )
+        })}
+        {renderTmpEdge()}
         {cursor.tool === CURSOR_TOOL.DRAW_WALL && (
           <Cursor coords={cursor.coords} />
         )}

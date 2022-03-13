@@ -4,7 +4,7 @@ import { Text } from 'react-konva'
 import { FONT_CONFIG } from '../constants'
 
 const EdgeText = (props) => {
-  const { text = 'Hello!', nodes, angle } = props
+  const { text = 'Hello!', nodes, angle, maxWidth } = props
 
   const [instance, setInstance] = useState(null)
 
@@ -23,24 +23,38 @@ const EdgeText = (props) => {
     y: (n1.y + n2.y) / 2
   }
   const width = instance?.getTextWidth()
+  // const isMaxWidthLessThanWidth = width && maxWidth && maxWidth < width
+  const isMaxWidthLessThanWidth = false
 
   const getCoords = () => {
     if (!width) {
       return edgeCenter
     }
 
+    const textWidth = isMaxWidthLessThanWidth ? maxWidth : width
+
     return {
-      x: edgeCenter.x - (width / 2) * Math.cos(rotation),
-      y: edgeCenter.y - (width / 2) * Math.sin(rotation)
+      x: edgeCenter.x - (textWidth / 2) * Math.cos(rotation),
+      y: edgeCenter.y - (textWidth / 2) * Math.sin(rotation)
     }
   }
+
+  const getScale = () => {
+    const scale = isMaxWidthLessThanWidth ? maxWidth / width : 1
+
+    return { x: scale, y: scale }
+  }
+
+  const coords = getCoords()
+  const scale = getScale()
 
   return (
     <Text
       ref={setInstance}
       text={text}
+      {...coords}
       rotation={rotation}
-      {...getCoords()}
+      scale={scale}
       {...FONT_CONFIG}
     />
   )
