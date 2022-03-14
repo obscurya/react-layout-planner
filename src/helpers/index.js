@@ -48,3 +48,10 @@ export const areValuesEqual = (value1, value2) => {
 export const arePointsEqual = (p1, p2) => {
   return areValuesEqual(p1.x, p2.x) && areValuesEqual(p1.y, p2.y)
 }
+
+export const movePointDistanceAngle = (point, distance, angle) => {
+  return {
+    x: point.x + distance * Math.cos(angle),
+    y: point.y + distance * Math.sin(angle)
+  }
+}

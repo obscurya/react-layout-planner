@@ -1,7 +1,9 @@
 import React, { useState } from 'react'
-import { Text } from 'react-konva'
+import { Group, Rect, Text } from 'react-konva'
 
 import { FONT_CONFIG } from '../constants'
+
+const RECT_PADDING = 2
 
 const EdgeText = (props) => {
   const { text = 'Hello!', nodes, angle, maxWidth } = props
@@ -48,15 +50,39 @@ const EdgeText = (props) => {
   const coords = getCoords()
   const scale = getScale()
 
+  const rectWidth = width + RECT_PADDING
+  const rectHeight = FONT_CONFIG.fontSize
+  const rectHalfHeight = rectHeight / 2
+  const rectCoords = {
+    x:
+      coords.x +
+      (RECT_PADDING / 2) * Math.cos(rotation + Math.PI) +
+      rectHalfHeight * Math.cos(rotation - Math.PI / 2),
+    y:
+      coords.y +
+      (RECT_PADDING / 2) * Math.sin(rotation + Math.PI) +
+      rectHalfHeight * Math.sin(rotation - Math.PI / 2)
+  }
+
   return (
-    <Text
-      ref={setInstance}
-      text={text}
-      {...coords}
-      rotation={rotation}
-      scale={scale}
-      {...FONT_CONFIG}
-    />
+    <Group>
+      <Rect
+        {...rectCoords}
+        width={rectWidth}
+        height={rectHeight}
+        rotation={rotation}
+        fill="rgba(255, 255, 255, 0.5)"
+        cornerRadius={2}
+      />
+      <Text
+        ref={setInstance}
+        text={text}
+        {...coords}
+        rotation={rotation}
+        scale={scale}
+        {...FONT_CONFIG}
+      />
+    </Group>
   )
 }
 

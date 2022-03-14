@@ -4,7 +4,7 @@ import { Stage, Layer } from 'react-konva'
 import Konva from 'konva'
 
 import { CURSOR_TOOL } from '../LayoutPlanner/constants'
-import { STAGE_SCALE_STEP } from './constants'
+import { STAGE_INITIAL_SCALE, STAGE_SCALE_STEP } from './constants'
 
 import {
   Grid,
@@ -43,7 +43,10 @@ const Canvas = (props) => {
   })
   const [coords, setCoords] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
-  const [scale, setScale] = useState({ x: 1, y: 1 })
+  const [scale, setScale] = useState({
+    x: STAGE_INITIAL_SCALE,
+    y: STAGE_INITIAL_SCALE
+  })
   const [gridCursorCoords, setGridCursorCoords] = useState({ x: 0, y: 0 })
 
   useResizeObserver(container, (entry) => {
@@ -233,11 +236,6 @@ const Canvas = (props) => {
             <EdgeFilling key={`edge-filling-${edgeIndex}`} points={points} />
           )
         })}
-        {edges.map(({ borders }, edgeIndex) => {
-          return (
-            <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
-          )
-        })}
         {cursor.tool === CURSOR_TOOL.MOVE &&
           nodes.map((node, nodeIndex) => {
             const isHovered = isNodeHovered(nodeIndex)
@@ -258,6 +256,11 @@ const Canvas = (props) => {
               borders={borders}
               pixelsToMeters={pixelsToMeters}
             />
+          )
+        })}
+        {edges.map(({ borders }, edgeIndex) => {
+          return (
+            <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
           )
         })}
         {renderTmpEdge()}

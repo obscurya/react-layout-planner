@@ -17,7 +17,8 @@ import {
   getDistanceBetweenPoints,
   arePointsEqual,
   getAngleBetweenPoints,
-  areValuesEqual
+  areValuesEqual,
+  movePointDistanceAngle
 } from '../helpers'
 
 import {
@@ -369,27 +370,47 @@ export const useLayoutPlanner = () => {
       edgePoint: null
     }
     const allNodes = tmpEdge.nodes ? [...nodes, tmpEdge.nodes[0]] : nodes
-    const collidingNodeIndex = allNodes.findIndex((node, nodeIndex) => {
-      if (
-        grabbedObject?.type === 'node' &&
-        grabbedObject?.index === nodeIndex
-      ) {
-        return false
+
+    const getCollidingNodeIndex = (cursor) => {
+      const collidingNodeIndex = allNodes.findIndex((node, nodeIndex) => {
+        if (
+          grabbedObject?.type === 'node' &&
+          grabbedObject?.index === nodeIndex
+        ) {
+          return false
+        }
+
+        return pointCircleCollision(node, cursor)
+      })
+
+      if (collidingNodeIndex === nodes.length) {
+        return 'tmpNode'
       }
 
-      return pointCircleCollision(node, newCursor)
-    })
+      return collidingNodeIndex
+    }
+
+    const collidingNodeIndex = getCollidingNodeIndex(newCursor)
 
     if (collidingNodeIndex !== -1) {
-      newCursor.nodeIndex =
-        collidingNodeIndex === nodes.length ? 'tmpNode' : collidingNodeIndex
+      newCursor.nodeIndex = collidingNodeIndex
     } else {
       for (const edge of edges) {
         const [p1, p2] = getEdgeNodes(edge)
         const intersectionPoint = lineCircleCollision({ p1, p2 }, newCursor)
 
         if (intersectionPoint) {
-          newCursor.edgePoint = intersectionPoint
+          const collidingNodeIndex = getCollidingNodeIndex({
+            ...newCursor,
+            ...intersectionPoint
+          })
+
+          if (collidingNodeIndex !== -1) {
+            newCursor.nodeIndex = collidingNodeIndex
+          } else {
+            newCursor.edgePoint = intersectionPoint
+          }
+
           break
         }
       }
@@ -557,13 +578,6 @@ export const useLayoutPlanner = () => {
   const createShapedEdge = (edge) => {
     const wall = getWallByEdge(edge)
     const halfEdgeWidth = wall ? wall.width / 2 : HALF_EDGE_WIDTH
-
-    const movePointDistanceAngle = (point, distance, angle) => {
-      return {
-        x: point.x + distance * Math.cos(angle),
-        y: point.y + distance * Math.sin(angle)
-      }
-    }
 
     return Object.entries(getEdgeNodesNeighborNodes(edge)).reduce(
       (points, [nodeIndexStr, neighborNodes]) => {
