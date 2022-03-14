@@ -33,7 +33,8 @@ const Canvas = (props) => {
     endGrabbing,
     beginTmpEdge,
     endTmpEdge,
-    pixelsToMeters
+    pixelsToMeters,
+    pixelsToSquareMeters
   } = props
 
   const [stage, setStage] = useState(null)
@@ -178,12 +179,15 @@ const Canvas = (props) => {
   }
 
   const _polygons = useMemo(() => {
-    return polygons.map((polygonNodes, polygonIndex) => {
+    return polygons.map(({ nodes, center, area }, polygonIndex) => {
       return (
         <Polygon
           key={`polygon-${polygonIndex}`}
           index={polygonIndex}
-          nodes={polygonNodes}
+          nodes={nodes}
+          center={center}
+          area={area}
+          pixelsToSquareMeters={pixelsToSquareMeters}
         />
       )
     })

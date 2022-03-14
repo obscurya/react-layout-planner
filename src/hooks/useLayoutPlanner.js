@@ -1,5 +1,5 @@
-// TODO: подписывать площади помещений
 // TODO: привязка вершин при перемещении
+// TODO: исправить позиционирование текста <- не обновляется ширина текста
 
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
@@ -17,7 +17,10 @@ import {
   arePointsEqual,
   getAngleBetweenPoints,
   areValuesEqual,
-  movePointDistanceAngle
+  movePointDistanceAngle,
+  compareArrays,
+  getPolygonCenter,
+  getPolygonArea
 } from '../helpers'
 
 import {
@@ -53,7 +56,8 @@ const initialState = {
   shapedEdges: [],
   grabbedObject: null,
   polygons: [],
-  walls: []
+  walls: [],
+  rooms: []
 }
 
 export const useLayoutPlanner = () => {
@@ -65,6 +69,7 @@ export const useLayoutPlanner = () => {
   const [grabbedObject, setGrabbedObject] = useState(initialState.grabbedObject)
   const [polygons, setPolygons] = useState(initialState.polygons)
   const [walls, setWalls] = useState(initialState.walls)
+  const [rooms, setRooms] = useState(initialState.rooms)
 
   /* CURSOR FUNCTIONS */
 
@@ -342,7 +347,7 @@ export const useLayoutPlanner = () => {
       )
     }
 
-    const newPolygons = getPolygon(polygonsTree).map((polygon) => {
+    const polygons = getPolygon(polygonsTree).map((polygon) => {
       return polygon.reduce((polygonEdges, nodeIndex, index) => {
         if (index === polygon.length - 1) {
           return polygonEdges
@@ -355,10 +360,39 @@ export const useLayoutPlanner = () => {
       }, [])
     })
 
-    setPolygons(newPolygons)
+    setPolygons(polygons)
   }
 
-  useEffect(createPolygonsEffect, [edges])
+  useEffect(createPolygonsEffect, [nodes, edges])
+
+  const getRoomByPolygon = (polygon) => {
+    const polygonEdges = polygon.map((edgeIndex) => {
+      return Math.abs(edgeIndex)
+    })
+
+    return rooms.find((room) => {
+      const roomEdges = room.edges.map((edgeIndex) => {
+        return Math.abs(edgeIndex)
+      })
+
+      return compareArrays(polygonEdges, roomEdges)
+    })
+  }
+
+  const setRoomsEffect = () => {
+    const rooms = polygons.map((polygon) => {
+      const nodes = getPolygonNodes(polygon)
+      const center = getPolygonCenter(nodes)
+      const area = getPolygonArea(nodes)
+      const room = getRoomByPolygon(polygon) || { edges: polygon }
+
+      return { ...room, nodes, center, area }
+    })
+
+    setRooms(rooms)
+  }
+
+  useEffect(setRoomsEffect, [polygons])
 
   // привязка курсора к одной из вершин или к одному из ребер
   // P.S. события мышки на фигурах из konva - кусок говна
@@ -762,10 +796,7 @@ export const useLayoutPlanner = () => {
 
   const getWallByEdge = (edge) => {
     return walls.find((wall) => {
-      return (
-        (wall.nodes[0] === edge[0] && wall.nodes[1] === edge[1]) ||
-        (wall.nodes[0] === edge[1] && wall.nodes[1] === edge[0])
-      )
+      return compareArrays(edge, wall.nodes)
     })
   }
 
@@ -793,7 +824,7 @@ export const useLayoutPlanner = () => {
       nodes: getEdgeNodes(edge),
       length: getEdgeLength(edge),
       angle: getEdgeAngle(edge),
-      width: wall ? wall.width : EDGE_WIDTH
+      width: wall?.width || EDGE_WIDTH
     }
   }
 
@@ -835,21 +866,19 @@ export const useLayoutPlanner = () => {
         })
       }
 
-      const points = getPoints()
-      const borders = getBorders()
-
       return {
-        ...getEdgeData(edge),
-        points,
-        borders
+        points: getPoints(),
+        borders: getBorders()
       }
     })
-  }, [edges, shapedEdges])
+  }, [edges, shapedEdges, walls])
   const returnedPolygons = useMemo(() => {
     return polygons.map((polygon) => {
-      return getPolygonNodes(polygon)
+      const room = getRoomByPolygon(polygon) || {}
+
+      return room
     })
-  }, [nodes, polygons])
+  }, [rooms])
   const returnedCursor = {
     coords: getCursorCoords(),
     tool: cursor.tool,

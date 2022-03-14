@@ -1,3 +1,5 @@
+import polylabel from 'polylabel'
+
 export const ACCURACY = 0.0001
 
 export const getDistanceBetweenPoints = (p1, p2) => {
@@ -54,4 +56,49 @@ export const movePointDistanceAngle = (point, distance, angle) => {
     x: point.x + distance * Math.cos(angle),
     y: point.y + distance * Math.sin(angle)
   }
+}
+
+export const getPolygonArea = (polygonPoints) => {
+  const [sums, diffs] = polygonPoints.reduce(
+    ([sums, diffs], p1, i) => {
+      const p2 = polygonPoints[i + 1] || polygonPoints[0]
+
+      return [sums + p1.x * p2.y, diffs - p1.y * p2.x]
+    },
+    [0, 0]
+  )
+
+  return Math.abs(sums + diffs) / 2
+}
+
+export const objPointsToArray = (points) => {
+  return points.map(({ x, y }) => [x, y])
+}
+
+export const transformPointsToGeoJSON = (
+  polygonPoints,
+  innerPolygonsPoints
+) => {
+  return [
+    objPointsToArray(polygonPoints),
+    ...innerPolygonsPoints.map((polygonPoints) =>
+      objPointsToArray(polygonPoints)
+    )
+  ]
+}
+
+export const getPolygonCenter = (polygonPoints, innerPolygonsPoints = []) => {
+  const [x, y] = polylabel(
+    transformPointsToGeoJSON(polygonPoints, innerPolygonsPoints)
+  )
+
+  return { x, y }
+}
+
+export const compareArrays = (arr1, arr2) => {
+  const [arrString1, arrString2] = [arr1, arr2].map((arr) => {
+    return arr.sort((a, b) => a - b).join('_')
+  })
+
+  return arrString1 === arrString2
 }

@@ -50,6 +50,16 @@ const LayoutPlanner = () => {
     return Math.round((meters + Number.EPSILON) * 100) / 100
   }
 
+  const pixelsToSquareMeters = (value) => {
+    const meters = value * METERS_IN_PIXEL ** 2
+
+    if (Number.isInteger(meters)) {
+      return meters
+    }
+
+    return Math.round((meters + Number.EPSILON) * 100) / 100
+  }
+
   return (
     <Styles.Container ref={setContainer}>
       {container && (
@@ -66,6 +76,7 @@ const LayoutPlanner = () => {
           beginTmpEdge={beginTmpEdge}
           endTmpEdge={endTmpEdge}
           pixelsToMeters={pixelsToMeters}
+          pixelsToSquareMeters={pixelsToSquareMeters}
         />
       )}
       <Styles.ToolsContainer>
