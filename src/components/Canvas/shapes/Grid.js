@@ -6,7 +6,8 @@ import {
   GRID_LINES_IN_CELL_NUMBER,
   GRID_LINE_STEP,
   GRID_CELL_COLOR,
-  GRID_LINE_COLOR
+  GRID_LINE_COLOR,
+  SHAPE_OPTIMIZATION_CONFIG
 } from '../constants'
 
 const Grid = (props) => {
@@ -84,6 +85,7 @@ const Grid = (props) => {
                 points={getPoints(direction, li)}
                 stroke={stroke}
                 strokeWidth={1}
+                {...SHAPE_OPTIMIZATION_CONFIG}
               />
             )
 
@@ -121,7 +123,7 @@ const Grid = (props) => {
 
   useEffect(bindCursorToGridEffect, [coords, scale, offset])
 
-  return <Layer>{lines}</Layer>
+  return <Layer listening={false}>{lines}</Layer>
 }
 
 export default Grid

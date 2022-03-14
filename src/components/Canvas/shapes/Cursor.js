@@ -1,7 +1,11 @@
 import React from 'react'
 import { Circle } from 'react-konva'
 
-import { NODE_RADIUS, CURSOR_COLOR } from '../constants'
+import {
+  NODE_RADIUS,
+  CURSOR_COLOR,
+  SHAPE_OPTIMIZATION_CONFIG
+} from '../constants'
 
 const Cursor = (props) => {
   const {
@@ -14,7 +18,7 @@ const Cursor = (props) => {
       y={y}
       radius={NODE_RADIUS}
       fill={CURSOR_COLOR}
-      listening={false}
+      {...SHAPE_OPTIMIZATION_CONFIG}
     />
   )
 }

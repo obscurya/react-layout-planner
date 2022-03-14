@@ -4,7 +4,8 @@ import { Group, Line } from 'react-konva'
 import {
   EDGE_WIDTH,
   TMP_EDGE_COLOR_ALLOWED,
-  TMP_EDGE_COLOR_NOT_ALLOWED
+  TMP_EDGE_COLOR_NOT_ALLOWED,
+  SHAPE_OPTIMIZATION_CONFIG
 } from '../constants'
 
 import { EdgeText } from './'
@@ -22,11 +23,13 @@ const TmpEdge = (props) => {
         strokeWidth={EDGE_WIDTH}
         stroke={color}
         lineCap="round"
+        {...SHAPE_OPTIMIZATION_CONFIG}
       />
       <EdgeText
         text={`≈${pixelsToMeters(length)}m`}
         nodes={nodes}
         angle={angle}
+        {...SHAPE_OPTIMIZATION_CONFIG}
       />
     </Group>
   )

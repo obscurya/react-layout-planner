@@ -43,3 +43,8 @@ export const FONT_CONFIG = {
 
 export const TMP_EDGE_COLOR_ALLOWED = palette.lightGreen[300]
 export const TMP_EDGE_COLOR_NOT_ALLOWED = palette.red[200]
+
+export const SHAPE_OPTIMIZATION_CONFIG = {
+  perfectDrawEnabled: false,
+  listening: false
+}

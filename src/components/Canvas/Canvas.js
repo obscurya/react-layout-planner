@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import useResizeObserver from '@react-hook/resize-observer'
 import { Stage, Layer } from 'react-konva'
 import Konva from 'konva'
@@ -177,7 +177,62 @@ const Canvas = (props) => {
     return false
   }
 
-  const renderTmpEdge = () => {
+  const _polygons = useMemo(() => {
+    return polygons.map((polygonNodes, polygonIndex) => {
+      return (
+        <Polygon
+          key={`polygon-${polygonIndex}`}
+          index={polygonIndex}
+          nodes={polygonNodes}
+        />
+      )
+    })
+  }, [polygons])
+
+  const _edgesFilling = useMemo(() => {
+    return edges.map(({ points }, edgeIndex) => {
+      return <EdgeFilling key={`edge-filling-${edgeIndex}`} points={points} />
+    })
+  }, [edges])
+
+  const _nodes = useMemo(() => {
+    if (cursor.tool !== CURSOR_TOOL.MOVE) {
+      return null
+    }
+
+    return nodes.map((node, nodeIndex) => {
+      const isHovered = isNodeHovered(nodeIndex)
+
+      return (
+        <Node
+          key={`node-${nodeIndex}`}
+          index={nodeIndex}
+          node={node}
+          isHovered={isHovered}
+        />
+      )
+    })
+  }, [cursor.tool, nodes, isNodeHovered])
+
+  const _edgesMeasurement = useMemo(() => {
+    return edges.map(({ borders }, edgeIndex) => {
+      return (
+        <EdgeMeasurement
+          key={`edge-measurement-${edgeIndex}`}
+          borders={borders}
+          pixelsToMeters={pixelsToMeters}
+        />
+      )
+    })
+  }, [edges])
+
+  const _edgesBorders = useMemo(() => {
+    return edges.map(({ borders }, edgeIndex) => {
+      return <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
+    })
+  }, [edges])
+
+  const _tmpEdge = useMemo(() => {
     if (!tmpEdge) {
       return null
     }
@@ -197,7 +252,15 @@ const Canvas = (props) => {
         pixelsToMeters={pixelsToMeters}
       />
     )
-  }
+  }, [tmpEdge])
+
+  const _cursor = useMemo(() => {
+    if (cursor.tool !== CURSOR_TOOL.DRAW_WALL) {
+      return null
+    }
+
+    return <Cursor coords={cursor.coords} />
+  }, [cursor])
 
   return (
     <Stage
@@ -221,52 +284,14 @@ const Canvas = (props) => {
         scale={scale.x}
         bindCursorToGrid={bindCursorToGrid}
       />
-      <Layer>
-        {polygons.map((polygonNodes, polygonIndex) => {
-          return (
-            <Polygon
-              key={`polygon-${polygonIndex}`}
-              index={polygonIndex}
-              nodes={polygonNodes}
-            />
-          )
-        })}
-        {edges.map(({ points }, edgeIndex) => {
-          return (
-            <EdgeFilling key={`edge-filling-${edgeIndex}`} points={points} />
-          )
-        })}
-        {cursor.tool === CURSOR_TOOL.MOVE &&
-          nodes.map((node, nodeIndex) => {
-            const isHovered = isNodeHovered(nodeIndex)
-
-            return (
-              <Node
-                key={`node-${nodeIndex}`}
-                index={nodeIndex}
-                node={node}
-                isHovered={isHovered}
-              />
-            )
-          })}
-        {edges.map(({ borders }, edgeIndex) => {
-          return (
-            <EdgeMeasurement
-              key={`edge-measurement-${edgeIndex}`}
-              borders={borders}
-              pixelsToMeters={pixelsToMeters}
-            />
-          )
-        })}
-        {edges.map(({ borders }, edgeIndex) => {
-          return (
-            <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
-          )
-        })}
-        {renderTmpEdge()}
-        {cursor.tool === CURSOR_TOOL.DRAW_WALL && (
-          <Cursor coords={cursor.coords} />
-        )}
+      <Layer listening={false}>
+        {_polygons}
+        {_edgesFilling}
+        {_nodes}
+        {_edgesMeasurement}
+        {_edgesBorders}
+        {_tmpEdge}
+        {_cursor}
       </Layer>
     </Stage>
   )

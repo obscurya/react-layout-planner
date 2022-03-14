@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Group, Rect, Text } from 'react-konva'
 
-import { FONT_CONFIG } from '../constants'
+import { FONT_CONFIG, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
 const RECT_PADDING = 2
 
@@ -50,7 +50,7 @@ const EdgeText = (props) => {
   const coords = getCoords()
   const scale = getScale()
 
-  const rectWidth = width + RECT_PADDING
+  const rectWidth = width ? width + RECT_PADDING : undefined
   const rectHeight = FONT_CONFIG.fontSize
   const rectHalfHeight = rectHeight / 2
   const rectCoords = {
@@ -73,6 +73,7 @@ const EdgeText = (props) => {
         rotation={rotation}
         fill="rgba(255, 255, 255, 0.5)"
         cornerRadius={2}
+        {...SHAPE_OPTIMIZATION_CONFIG}
       />
       <Text
         ref={setInstance}
@@ -81,6 +82,7 @@ const EdgeText = (props) => {
         rotation={rotation}
         scale={scale}
         {...FONT_CONFIG}
+        {...SHAPE_OPTIMIZATION_CONFIG}
       />
     </Group>
   )

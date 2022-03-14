@@ -1,4 +1,3 @@
-// TODO: подписывать размеры стен
 // TODO: подписывать площади помещений
 // TODO: привязка вершин при перемещении
 
@@ -359,7 +358,7 @@ export const useLayoutPlanner = () => {
     setPolygons(newPolygons)
   }
 
-  useEffect(createPolygonsEffect, [nodes, edges])
+  useEffect(createPolygonsEffect, [edges])
 
   // привязка курсора к одной из вершин или к одному из ребер
   // P.S. события мышки на фигурах из konva - кусок говна
@@ -850,7 +849,7 @@ export const useLayoutPlanner = () => {
     return polygons.map((polygon) => {
       return getPolygonNodes(polygon)
     })
-  }, [polygons])
+  }, [nodes, polygons])
   const returnedCursor = {
     coords: getCursorCoords(),
     tool: cursor.tool,

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Line } from 'react-konva'
 
-import { POLYGON_COLORS } from '../constants'
+import { POLYGON_COLORS, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
 const Polygon = (props) => {
   const { index, nodes } = props
@@ -13,6 +13,7 @@ const Polygon = (props) => {
       }, [])}
       fill={POLYGON_COLORS[index]}
       closed
+      {...SHAPE_OPTIMIZATION_CONFIG}
     />
   )
 }
