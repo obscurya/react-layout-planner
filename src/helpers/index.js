@@ -24,9 +24,13 @@ export const getLineLength = (l) => {
 }
 
 export const getRandomColor = () => {
-  const h = 360 * Math.random()
-  const s = 25 + 70 * Math.random()
-  const l = 85 + 10 * Math.random()
+  const [h, s, l] = [
+    360 * Math.random(),
+    25 + 70 * Math.random(),
+    85 + 10 * Math.random()
+  ].map((value) => {
+    return Math.floor(value)
+  })
 
   return `hsla(${h}, ${s}%, ${l}%, 0.5)`
 }
@@ -97,7 +101,7 @@ export const getPolygonCenter = (polygonPoints, innerPolygonsPoints = []) => {
 
 export const compareArrays = (arr1, arr2) => {
   const [arrString1, arrString2] = [arr1, arr2].map((arr) => {
-    return arr.sort((a, b) => a - b).join('_')
+    return [...arr].sort((a, b) => a - b).join('_')
   })
 
   return arrString1 === arrString2

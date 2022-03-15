@@ -179,7 +179,7 @@ const Canvas = (props) => {
   }
 
   const _polygons = useMemo(() => {
-    return polygons.map(({ nodes, center, area }, polygonIndex) => {
+    return polygons.map(({ nodes, center, area, color }, polygonIndex) => {
       return (
         <Polygon
           key={`polygon-${polygonIndex}`}
@@ -187,6 +187,7 @@ const Canvas = (props) => {
           nodes={nodes}
           center={center}
           area={area}
+          color={color}
           pixelsToSquareMeters={pixelsToSquareMeters}
         />
       )

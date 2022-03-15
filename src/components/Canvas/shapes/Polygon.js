@@ -1,12 +1,12 @@
 import React from 'react'
 import { Group, Line } from 'react-konva'
 
-import { POLYGON_COLORS, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
+import { SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
-import { CustomText } from './'
+import { Text } from './'
 
 const Polygon = (props) => {
-  const { index, nodes, center, area, pixelsToSquareMeters } = props
+  const { nodes, center, area, color, pixelsToSquareMeters } = props
 
   if (!nodes) {
     return null
@@ -20,15 +20,12 @@ const Polygon = (props) => {
     <Group>
       <Line
         points={points}
-        fill={POLYGON_COLORS[index]}
+        fill={color}
         closed
         {...SHAPE_OPTIMIZATION_CONFIG}
       />
       {center && (
-        <CustomText
-          text={`${pixelsToSquareMeters(area)}m2`}
-          position={center}
-        />
+        <Text text={`${pixelsToSquareMeters(area)}m²`} position={center} />
       )}
     </Group>
   )

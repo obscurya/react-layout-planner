@@ -2,8 +2,6 @@ import * as palette from '@mui/material/colors'
 
 import { PIXELS_IN_METER } from '../LayoutPlanner/constants'
 
-import { getRandomColor } from '../../helpers'
-
 export const GRID_CELL_SIZE = PIXELS_IN_METER
 export const GRID_CELL_COLOR = palette.blueGrey[100]
 export const GRID_LINE_COLOR = palette.blueGrey[50]
@@ -26,12 +24,15 @@ export const EDGE_MEASUREMENT_LINE_COLOR = palette.blueGrey[300]
 export const CURSOR_RADIUS = EDGE_WIDTH
 export const CURSOR_COLOR = `${palette.blueGrey[500]}33`
 
-export const POLYGON_COLORS = [...new Array(100)].map(() => {
-  return getRandomColor()
-})
+export const TMP_EDGE_COLOR_ALLOWED = palette.lightGreen[300]
+export const TMP_EDGE_COLOR_NOT_ALLOWED = palette.red[200]
 
-const FONT_SIZE = EDGE_WIDTH / 1.3
+export const SHAPE_OPTIMIZATION_CONFIG = {
+  perfectDrawEnabled: false,
+  listening: false
+}
 
+export const FONT_SIZE = EDGE_WIDTH / 1.3
 export const FONT_CONFIG = {
   fontSize: FONT_SIZE,
   height: FONT_SIZE / 1.7,
@@ -39,12 +40,4 @@ export const FONT_CONFIG = {
   fill: palette.blueGrey[900],
   align: 'center',
   verticalAlign: 'bottom'
-}
-
-export const TMP_EDGE_COLOR_ALLOWED = palette.lightGreen[300]
-export const TMP_EDGE_COLOR_NOT_ALLOWED = palette.red[200]
-
-export const SHAPE_OPTIMIZATION_CONFIG = {
-  perfectDrawEnabled: false,
-  listening: false
 }

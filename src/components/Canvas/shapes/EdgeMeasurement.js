@@ -15,7 +15,7 @@ import {
   movePointDistanceAngle
 } from '../../../helpers'
 
-import { EdgeText } from './'
+import { Text } from './'
 
 const MeasurementLine = (props) => {
   const { points } = props
@@ -50,6 +50,10 @@ const EdgeMeasurement = (props) => {
           borderAngle - Math.PI / 2
         )
       })
+      const textPosition = {
+        x: (nodes[0].x + nodes[1].x) / 2,
+        y: (nodes[0].y + nodes[1].y) / 2
+      }
 
       return (
         <Group key={`edge-border-${borderIndex}`}>
@@ -90,11 +94,10 @@ const EdgeMeasurement = (props) => {
               return [...points, x, y]
             }, [])}
           />
-          <EdgeText
+          <Text
             text={`${pixelsToMeters(borderLength)}m`}
-            nodes={nodes}
+            position={textPosition}
             angle={borderAngle}
-            maxWidth={borderLength}
           />
         </Group>
       )

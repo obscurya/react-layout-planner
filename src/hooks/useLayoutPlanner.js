@@ -1,5 +1,5 @@
 // TODO: привязка вершин при перемещении
-// TODO: исправить позиционирование текста <- не обновляется ширина текста
+// TODO: разобраться с deps при мемоизации
 
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
@@ -20,7 +20,8 @@ import {
   movePointDistanceAngle,
   compareArrays,
   getPolygonCenter,
-  getPolygonArea
+  getPolygonArea,
+  getRandomColor
 } from '../helpers'
 
 import {
@@ -223,69 +224,63 @@ export const useLayoutPlanner = () => {
     const newNodes = [...nodes, ...nodesToAdd]
 
     setNodes(newNodes)
-    setEdges(
-      edges.reduce(
-        (newEdges, edge) => {
-          const [p1, p2] = getEdgeNodes(edge)
-          const commonNodeIndex = getEdgesCommonNodeIndex(edge, edgeToAdd)
+    setEdges([
+      ...edges.reduce((newEdges, edge) => {
+        const [p1, p2] = getEdgeNodes(edge)
+        const commonNodeIndex = getEdgesCommonNodeIndex(edge, edgeToAdd)
 
-          if (commonNodeIndex !== null) {
-            // у нового ребра есть общая вершина с текущим ребром
-            const edgeToAddNodeIndex =
-              edgeToAdd[0] === commonNodeIndex ? edgeToAdd[1] : edgeToAdd[0]
-            const edgeToAddNode = newNodes[edgeToAddNodeIndex]
+        if (commonNodeIndex !== null) {
+          // у нового ребра есть общая вершина с текущим ребром
+          const edgeToAddNodeIndex =
+            edgeToAdd[0] === commonNodeIndex ? edgeToAdd[1] : edgeToAdd[0]
+          const edgeToAddNode = newNodes[edgeToAddNodeIndex]
 
-            if (linePointCollision({ p1, p2 }, edgeToAddNode)) {
-              // другая вершина нового ребра лежит на текущем ребре
-              const edgeNodeIndex =
-                edge[0] === commonNodeIndex ? edge[1] : edge[0]
+          if (linePointCollision({ p1, p2 }, edgeToAddNode)) {
+            // другая вершина нового ребра лежит на текущем ребре
+            const edgeNodeIndex =
+              edge[0] === commonNodeIndex ? edge[1] : edge[0]
 
-              return [...newEdges, [edgeNodeIndex, edgeToAddNodeIndex]]
-            } else {
-              return [...newEdges, edge]
-            }
-          }
-
-          // общей вершины нет
-          // проверяем, лежат ли новые вершины на текущем ребре,
-          // для дальнейшего разбиения текущего ребра на несколько частей -
-          // пополам или на две отдельные части
-
-          const collidingNodesIndexes = getNodesIndexesCollidingWithEdge(
-            edge,
-            nodesToAdd
-          )
-
-          if (!collidingNodesIndexes.length) {
-            // ни одна новая вершина не лежит на текущем ребре
+            return [...newEdges, [edgeNodeIndex, edgeToAddNodeIndex]]
+          } else {
             return [...newEdges, edge]
           }
+        }
 
-          if (collidingNodesIndexes.length === 1) {
-            // одна вершина нового ребра внутри существующего ребра
-            const nodeIndex = nodes.length + collidingNodesIndexes[0]
+        // общей вершины нет
+        // проверяем, лежат ли новые вершины на текущем ребре,
+        // для дальнейшего разбиения текущего ребра на несколько частей -
+        // пополам или на две отдельные части
 
-            return [...newEdges, [edge[0], nodeIndex], [nodeIndex, edge[1]]]
-          }
+        const collidingNodesIndexes = getNodesIndexesCollidingWithEdge(
+          edge,
+          nodesToAdd
+        )
 
-          // новое ребро полностью внутри существующего ребра
-          const [d1, d2] = nodesToAdd.map((node) => {
-            return getDistanceBetweenPoints(p1, node)
-          })
+        if (!collidingNodesIndexes.length) {
+          // ни одна новая вершина не лежит на текущем ребре
+          return [...newEdges, edge]
+        }
 
-          if (d1 < d2) {
-            return [
-              ...newEdges,
-              [edge[0], edgeToAdd[0]],
-              [edge[1], edgeToAdd[1]]
-            ]
-          }
+        if (collidingNodesIndexes.length === 1) {
+          // одна вершина нового ребра внутри существующего ребра
+          const nodeIndex = nodes.length + collidingNodesIndexes[0]
 
-          return [...newEdges, [edge[0], edgeToAdd[1]], [edge[1], edgeToAdd[0]]]
-        },
-        [edgeToAdd]
-      )
-    )
+          return [...newEdges, [edge[0], nodeIndex], [nodeIndex, edge[1]]]
+        }
+
+        // новое ребро полностью внутри существующего ребра
+        const [d1, d2] = nodesToAdd.map((node) => {
+          return getDistanceBetweenPoints(p1, node)
+        })
+
+        if (d1 < d2) {
+          return [...newEdges, [edge[0], edgeToAdd[0]], [edge[1], edgeToAdd[1]]]
+        }
+
+        return [...newEdges, [edge[0], edgeToAdd[1]], [edge[1], edgeToAdd[0]]]
+      }, []),
+      edgeToAdd
+    ])
   }
 
   const getPolygonNodes = (polygon) => {
@@ -384,9 +379,15 @@ export const useLayoutPlanner = () => {
       const nodes = getPolygonNodes(polygon)
       const center = getPolygonCenter(nodes)
       const area = getPolygonArea(nodes)
-      const room = getRoomByPolygon(polygon) || { edges: polygon }
+      const room = getRoomByPolygon(polygon)
 
-      return { ...room, nodes, center, area }
+      if (room) {
+        return { ...room, nodes, center, area }
+      }
+
+      const color = getRandomColor()
+
+      return { edges: polygon, nodes, center, area, color }
     })
 
     setRooms(rooms)
@@ -505,11 +506,6 @@ export const useLayoutPlanner = () => {
         ? getCursorCoords()
         : cursor.nodeIndex
     const tmpEdgeNodes = [tmpEdge.nodes[0], node]
-
-    if (tmpEdge.nodes[0] === 'tmpNode') {
-      setTmpEdge({ nodes: null, isAllowed: false })
-      return
-    }
 
     let isAllowed = true
 

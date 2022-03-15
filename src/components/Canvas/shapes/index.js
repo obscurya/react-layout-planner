@@ -4,8 +4,7 @@ import Node from './Node'
 import EdgeFilling from './EdgeFilling'
 import Polygon from './Polygon'
 import TmpEdge from './TmpEdge'
-import CustomText from './CustomText'
-import EdgeText from './EdgeText'
+import Text from './Text'
 import EdgeBorders from './EdgeBorders'
 import EdgeMeasurement from './EdgeMeasurement'
 
@@ -16,8 +15,7 @@ export {
   EdgeFilling,
   Polygon,
   TmpEdge,
-  CustomText,
-  EdgeText,
+  Text,
   EdgeBorders,
   EdgeMeasurement
 }

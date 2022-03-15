@@ -6,7 +6,7 @@ import { FONT_CONFIG, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 const RECT_PADDING = 2
 
 const CustomText = (props) => {
-  const { text = 'Hello!', position, angle = 0, maxWidth } = props
+  const { text = 'Hello!', position, angle = 0 } = props
 
   const [instance, setInstance] = useState(null)
 
@@ -19,31 +19,20 @@ const CustomText = (props) => {
   }
 
   const rotation = getRotation()
-  const width = instance?.getTextWidth()
-  // const isMaxWidthLessThanWidth = width && maxWidth && maxWidth < width
-  const isMaxWidthLessThanWidth = false
+  const width = instance?.width()
 
   const getCoords = () => {
     if (!width) {
       return position
     }
 
-    const textWidth = isMaxWidthLessThanWidth ? maxWidth : width
-
     return {
-      x: position.x - (textWidth / 2) * Math.cos(rotation),
-      y: position.y - (textWidth / 2) * Math.sin(rotation)
+      x: position.x - (width / 2) * Math.cos(rotation),
+      y: position.y - (width / 2) * Math.sin(rotation)
     }
   }
 
-  const getScale = () => {
-    const scale = isMaxWidthLessThanWidth ? maxWidth / width : 1
-
-    return { x: scale, y: scale }
-  }
-
   const coords = getCoords()
-  const scale = getScale()
 
   const rectWidth = width ? width + RECT_PADDING : undefined
   const rectHeight = FONT_CONFIG.fontSize
@@ -75,7 +64,6 @@ const CustomText = (props) => {
         text={text}
         {...coords}
         rotation={rotation}
-        scale={scale}
         {...FONT_CONFIG}
         {...SHAPE_OPTIMIZATION_CONFIG}
       />

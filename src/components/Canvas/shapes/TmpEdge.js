@@ -8,13 +8,17 @@ import {
   SHAPE_OPTIMIZATION_CONFIG
 } from '../constants'
 
-import { EdgeText } from './'
+import { Text } from './'
 
 const TmpEdge = (props) => {
   const { nodes, length, angle, isAllowed, pixelsToMeters } = props
 
   const color = isAllowed ? TMP_EDGE_COLOR_ALLOWED : TMP_EDGE_COLOR_NOT_ALLOWED
   const [n1, n2] = nodes
+  const textPosition = {
+    x: (n1.x + n2.x) / 2,
+    y: (n1.y + n2.y) / 2
+  }
 
   return (
     <Group>
@@ -25,11 +29,10 @@ const TmpEdge = (props) => {
         lineCap="round"
         {...SHAPE_OPTIMIZATION_CONFIG}
       />
-      <EdgeText
+      <Text
         text={`≈${pixelsToMeters(length)}m`}
-        nodes={nodes}
+        position={textPosition}
         angle={angle}
-        {...SHAPE_OPTIMIZATION_CONFIG}
       />
     </Group>
   )
