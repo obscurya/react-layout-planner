@@ -1,5 +1,5 @@
 import React from 'react'
-import { Group, Line } from 'react-konva'
+import { Line } from 'react-konva'
 
 import { SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
@@ -17,7 +17,7 @@ const Polygon = (props) => {
   }, [])
 
   return (
-    <Group>
+    <>
       <Line
         points={points}
         fill={color}
@@ -27,7 +27,7 @@ const Polygon = (props) => {
       {center && (
         <Text text={`${pixelsToSquareMeters(area)}m²`} position={center} />
       )}
-    </Group>
+    </>
   )
 }
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Group, Rect, Text } from 'react-konva'
+import { Rect, Text } from 'react-konva'
 
 import { FONT_CONFIG, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
@@ -49,7 +49,7 @@ const CustomText = (props) => {
   }
 
   return (
-    <Group>
+    <>
       <Rect
         {...rectCoords}
         width={rectWidth}
@@ -67,7 +67,7 @@ const CustomText = (props) => {
         {...FONT_CONFIG}
         {...SHAPE_OPTIMIZATION_CONFIG}
       />
-    </Group>
+    </>
   )
 }
 

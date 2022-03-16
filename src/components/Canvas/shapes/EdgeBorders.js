@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Group, Line } from 'react-konva'
+import { Line } from 'react-konva'
 
 import { EDGE_BORDER_COLOR, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
@@ -25,7 +25,7 @@ const EdgeBorders = (props) => {
     })
   }, [borders])
 
-  return <Group>{borderLines}</Group>
+  return borderLines
 }
 
 export default EdgeBorders

@@ -1,6 +1,11 @@
 // TODO: привязка вершин при перемещении
 // TODO: разобраться с deps при мемоизации
 
+// TODO: возвращать edges -> walls, polygons -> rooms
+// TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
+// TODO: все таки попробовать создать дополнительный канвас только для рисования
+// TODO: проверить, что все мемоизируется правильно
+
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
 
@@ -834,21 +839,6 @@ export const useLayoutPlanner = () => {
     return edges.map((edge, edgeIndex) => {
       const shape = shapedEdges[edgeIndex]
 
-      const getPoints = () => {
-        if (!shape) {
-          return null
-        }
-
-        return shape.reduce((coords, pointsGroup) => {
-          return [
-            ...coords,
-            ...pointsGroup.reduce((groupCoords, { x, y }) => {
-              return [...groupCoords, x, y]
-            }, [])
-          ]
-        }, [])
-      }
-
       const getBorders = () => {
         if (!shape) {
           return null
@@ -863,7 +853,7 @@ export const useLayoutPlanner = () => {
       }
 
       return {
-        points: getPoints(),
+        shape,
         borders: getBorders()
       }
     })

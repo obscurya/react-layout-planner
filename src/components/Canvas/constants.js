@@ -41,3 +41,8 @@ export const FONT_CONFIG = {
   align: 'center',
   verticalAlign: 'bottom'
 }
+
+export const WALLS_PATTERN = {
+  STEP: 5,
+  COLOR: palette.blueGrey[100]
+}

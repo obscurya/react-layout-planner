@@ -42,7 +42,7 @@ const Grid = (props) => {
     }
   }, [coords, scale, offset])
 
-  const createLines = () => {
+  const lines = useMemo(() => {
     const rowsNumber =
       Math.floor((width / scale - offset.x) / GRID_CELL_SIZE) + 1
     const verticalLinesNumber = rowsNumber * GRID_LINES_IN_CELL_NUMBER + 1
@@ -102,10 +102,6 @@ const Grid = (props) => {
     )
 
     return [...lines, ...darkerLines]
-  }
-
-  const lines = useMemo(() => {
-    return createLines()
   }, [width, height, coords, scale])
 
   const bindCursorToGridEffect = () => {

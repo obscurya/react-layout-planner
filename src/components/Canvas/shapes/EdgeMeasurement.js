@@ -1,5 +1,5 @@
 import React from 'react'
-import { Group, Line } from 'react-konva'
+import { Line } from 'react-konva'
 import { useDeepCompareMemo } from 'use-deep-compare'
 
 import {
@@ -56,7 +56,7 @@ const EdgeMeasurement = (props) => {
       }
 
       return (
-        <Group key={`edge-border-${borderIndex}`}>
+        <React.Fragment key={`edge-border-${borderIndex}`}>
           {border.map((p, i) => {
             const lineEnd = movePointDistanceAngle(
               p,
@@ -99,12 +99,12 @@ const EdgeMeasurement = (props) => {
             position={textPosition}
             angle={borderAngle}
           />
-        </Group>
+        </React.Fragment>
       )
     })
   }, [borders])
 
-  return <Group>{borderMeasurements}</Group>
+  return borderMeasurements
 }
 
 export default EdgeMeasurement

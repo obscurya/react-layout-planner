@@ -10,7 +10,7 @@ import {
   Grid,
   Cursor,
   Node,
-  EdgeFilling,
+  WallsGradient,
   Polygon,
   TmpEdge,
   EdgeBorders,
@@ -194,12 +194,6 @@ const Canvas = (props) => {
     })
   }, [polygons])
 
-  const _edgesFilling = useMemo(() => {
-    return edges.map(({ points }, edgeIndex) => {
-      return <EdgeFilling key={`edge-filling-${edgeIndex}`} points={points} />
-    })
-  }, [edges])
-
   const _nodes = useMemo(() => {
     if (cursor.tool !== CURSOR_TOOL.MOVE) {
       return null
@@ -291,7 +285,7 @@ const Canvas = (props) => {
       />
       <Layer listening={false}>
         {_polygons}
-        {_edgesFilling}
+        <WallsGradient edges={edges} scale={scale.x} />
         {_nodes}
         {_edgesMeasurement}
         {_edgesBorders}

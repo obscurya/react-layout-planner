@@ -1,7 +1,7 @@
 import Grid from './Grid'
 import Cursor from './Cursor'
 import Node from './Node'
-import EdgeFilling from './EdgeFilling'
+import WallsGradient from './WallsGradient'
 import Polygon from './Polygon'
 import TmpEdge from './TmpEdge'
 import Text from './Text'
@@ -12,7 +12,7 @@ export {
   Grid,
   Cursor,
   Node,
-  EdgeFilling,
+  WallsGradient,
   Polygon,
   TmpEdge,
   Text,

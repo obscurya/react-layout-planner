@@ -1,5 +1,5 @@
 import React from 'react'
-import { Group, Line } from 'react-konva'
+import { Line } from 'react-konva'
 
 import {
   EDGE_WIDTH,
@@ -21,7 +21,7 @@ const TmpEdge = (props) => {
   }
 
   return (
-    <Group>
+    <>
       <Line
         points={[n1.x, n1.y, n2.x, n2.y]}
         strokeWidth={EDGE_WIDTH}
@@ -34,7 +34,7 @@ const TmpEdge = (props) => {
         position={textPosition}
         angle={angle}
       />
-    </Group>
+    </>
   )
 }
 
