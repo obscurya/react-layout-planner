@@ -8,14 +8,11 @@ import {
 } from '../constants'
 
 const Cursor = (props) => {
-  const {
-    coords: { x, y }
-  } = props
+  const { coords } = props
 
   return (
     <Circle
-      x={x}
-      y={y}
+      {...coords}
       radius={NODE_RADIUS}
       fill={CURSOR_COLOR}
       {...SHAPE_OPTIMIZATION_CONFIG}

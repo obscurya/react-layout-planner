@@ -1,5 +1,3 @@
-// TODO: move text to another shape/layer
-
 import React from 'react'
 import { Shape } from 'react-konva'
 import { useDeepCompareMemo } from 'use-deep-compare'
@@ -18,10 +16,12 @@ import {
   movePointDistanceAngle
 } from '../../../helpers'
 
+import { pixelsToMeters } from '../../LayoutPlanner/helpers'
+
 import { Text } from './'
 
 const EdgeMeasurement = (props) => {
-  const { borders, pixelsToMeters } = props
+  const { borders } = props
 
   if (!borders) {
     return null

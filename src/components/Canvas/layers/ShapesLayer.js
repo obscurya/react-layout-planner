@@ -1,8 +1,8 @@
-// TODO: useDeepCompareMemo?
-// TODO: improve naming
+// TODO: move text to another shape/layer
 
 import React, { useMemo } from 'react'
 import { Layer } from 'react-konva'
+import { useDeepCompareMemo, useDeepCompareCallback } from 'use-deep-compare'
 
 import { CURSOR_TOOL } from '../../LayoutPlanner/constants'
 import { SHAPE_OPTIMIZATION_CONFIG } from '../constants'
@@ -18,126 +18,94 @@ import {
 } from '../shapes'
 
 const ShapesLayer = (props) => {
-  const {
-    cursor,
-    tmpEdge,
-    nodes,
-    edges,
-    polygons,
-    pixelsToMeters,
-    pixelsToSquareMeters
-  } = props
+  const { cursor, tmpEdge, nodes, edges, polygons } = props
 
-  const isNodeHovered = (nodeIndex) => {
-    if (cursor.grabbedObject) {
-      return (
-        cursor.grabbedObject.type === 'node' &&
-        cursor.grabbedObject.index === nodeIndex
-      )
-    }
+  const isNodeHovered = useDeepCompareCallback(
+    (nodeIndex) => {
+      if (cursor.grabbedObject) {
+        return (
+          cursor.grabbedObject.type === 'node' &&
+          cursor.grabbedObject.index === nodeIndex
+        )
+      }
 
-    if (cursor.hoveredObject) {
-      return (
-        cursor.hoveredObject.type === 'node' &&
-        cursor.hoveredObject.index === nodeIndex
-      )
-    }
+      if (cursor.hoveredObject) {
+        return (
+          cursor.hoveredObject.type === 'node' &&
+          cursor.hoveredObject.index === nodeIndex
+        )
+      }
 
-    return false
-  }
+      return false
+    },
+    [cursor.grabbedObject, cursor.hoveredObject]
+  )
 
-  const _polygons = useMemo(() => {
+  const memoizedPolygons = useDeepCompareMemo(() => {
     return polygons.map(({ nodes, center, area, color }, polygonIndex) => {
       return (
         <Polygon
           key={`polygon-${polygonIndex}`}
-          index={polygonIndex}
           nodes={nodes}
           center={center}
           area={area}
           color={color}
-          pixelsToSquareMeters={pixelsToSquareMeters}
         />
       )
     })
   }, [polygons])
 
-  const _nodes = useMemo(() => {
+  const memoizedNodes = useMemo(() => {
     if (cursor.tool !== CURSOR_TOOL.MOVE) {
       return null
     }
 
     return nodes.map((node, nodeIndex) => {
-      const isHovered = isNodeHovered(nodeIndex)
-
       return (
         <Node
           key={`node-${nodeIndex}`}
           index={nodeIndex}
           node={node}
-          isHovered={isHovered}
+          isHovered={isNodeHovered(nodeIndex)}
         />
       )
     })
   }, [cursor.tool, nodes, isNodeHovered])
 
-  const _edgesMeasurement = useMemo(() => {
+  const memoizedEdgesMeasurement = useMemo(() => {
     return edges.map(({ borders }, edgeIndex) => {
       return (
         <EdgeMeasurement
           key={`edge-measurement-${edgeIndex}`}
           borders={borders}
-          pixelsToMeters={pixelsToMeters}
         />
       )
     })
   }, [edges])
 
-  const _edgesBorders = useMemo(() => {
+  const memoizedEdgesBorders = useMemo(() => {
     return edges.map(({ borders }, edgeIndex) => {
       return <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
     })
   }, [edges])
 
-  const _tmpEdge = useMemo(() => {
-    if (!tmpEdge) {
-      return null
-    }
-
-    const { nodes, length, angle, isAllowed } = tmpEdge
-
-    if (nodes[0] === 'tmpNode') {
-      return null
-    }
-
-    return (
-      <TmpEdge
-        nodes={nodes}
-        length={length}
-        angle={angle}
-        isAllowed={isAllowed}
-        pixelsToMeters={pixelsToMeters}
-      />
-    )
-  }, [tmpEdge])
-
-  const _cursor = useMemo(() => {
+  const memoizedCursor = useDeepCompareMemo(() => {
     if (cursor.tool !== CURSOR_TOOL.DRAW_WALL) {
       return null
     }
 
     return <Cursor coords={cursor.coords} />
-  }, [cursor])
+  }, [cursor.tool, cursor.coords])
 
   return (
     <Layer {...SHAPE_OPTIMIZATION_CONFIG}>
-      {_polygons}
+      {memoizedPolygons}
       <WallsFilling edges={edges} />
-      {_nodes}
-      {_edgesMeasurement}
-      {_edgesBorders}
-      {_tmpEdge}
-      {_cursor}
+      {memoizedNodes}
+      {memoizedEdgesMeasurement}
+      {memoizedEdgesBorders}
+      <TmpEdge {...(tmpEdge || {})} />
+      {memoizedCursor}
     </Layer>
   )
 }

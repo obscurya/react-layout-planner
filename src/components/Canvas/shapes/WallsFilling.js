@@ -3,8 +3,6 @@ import { Group, Rect, Shape } from 'react-konva'
 
 import { WALLS_PATTERN, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
-import { movePointDistanceAngle } from '../../../helpers'
-
 const WallsFilling = (props) => {
   const { edges } = props
 
@@ -64,22 +62,26 @@ const WallsFilling = (props) => {
       return null
     }
 
+    const linesNumber = Math.floor((width + height) / WALLS_PATTERN.STEP)
     const diagonalLength = height * Math.sqrt(2)
-    const size = width + height
-    const linesNumber = Math.floor(size / WALLS_PATTERN.STEP)
 
-    const lines = [...new Array(linesNumber)].reduce((linesPoints, _, i) => {
-      const point1 = {
-        x: startPoint.x + WALLS_PATTERN.STEP * (i + 1),
+    let lineStartX = startPoint.x
+    let lineEndX = lineStartX + diagonalLength * Math.cos(3 * (Math.PI / 4))
+
+    const lines = [...new Array(linesNumber)].reduce((linesPoints) => {
+      lineStartX += WALLS_PATTERN.STEP
+      lineEndX += WALLS_PATTERN.STEP
+
+      const p1 = {
+        x: lineStartX,
         y: startPoint.y
       }
-      const point2 = movePointDistanceAngle(
-        point1,
-        diagonalLength,
-        3 * (Math.PI / 4)
-      )
+      const p2 = {
+        x: lineEndX,
+        y: endPoint.y
+      }
 
-      return [...linesPoints, [point1, point2]]
+      return [...linesPoints, [p1, p2]]
     }, [])
 
     return (

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { ButtonGroup, Tooltip } from '@mui/material'
 import { TimelineRounded, PanToolRounded } from '@mui/icons-material'
 
-import { CURSOR_TOOL, METERS_IN_PIXEL } from './constants'
+import { CURSOR_TOOL } from './constants'
 
 import { useLayoutPlanner } from '../../hooks/useLayoutPlanner'
 
@@ -40,26 +40,6 @@ const LayoutPlanner = () => {
     }
   ]
 
-  const pixelsToMeters = (value) => {
-    const meters = value * METERS_IN_PIXEL
-
-    if (Number.isInteger(meters)) {
-      return meters
-    }
-
-    return Math.round((meters + Number.EPSILON) * 100) / 100
-  }
-
-  const pixelsToSquareMeters = (value) => {
-    const meters = value * METERS_IN_PIXEL ** 2
-
-    if (Number.isInteger(meters)) {
-      return meters
-    }
-
-    return Math.round((meters + Number.EPSILON) * 100) / 100
-  }
-
   return (
     <Styles.Container ref={setContainer}>
       {container && (
@@ -75,8 +55,6 @@ const LayoutPlanner = () => {
           endGrabbing={endGrabbing}
           beginTmpEdge={beginTmpEdge}
           endTmpEdge={endTmpEdge}
-          pixelsToMeters={pixelsToMeters}
-          pixelsToSquareMeters={pixelsToSquareMeters}
         />
       )}
       <Styles.ToolsContainer>

@@ -23,9 +23,7 @@ const Canvas = (props) => {
     beginGrabbing,
     endGrabbing,
     beginTmpEdge,
-    endTmpEdge,
-    pixelsToMeters,
-    pixelsToSquareMeters
+    endTmpEdge
   } = props
 
   const [stage, setStage] = useState(null)
@@ -175,8 +173,6 @@ const Canvas = (props) => {
         nodes={nodes}
         edges={edges}
         polygons={polygons}
-        pixelsToMeters={pixelsToMeters}
-        pixelsToSquareMeters={pixelsToSquareMeters}
       />
     </Stage>
   )
