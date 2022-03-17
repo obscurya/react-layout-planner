@@ -1,10 +1,13 @@
+// TODO: move text to another shape/layer
+
 import React from 'react'
-import { Line } from 'react-konva'
+import { Shape } from 'react-konva'
 import { useDeepCompareMemo } from 'use-deep-compare'
 
 import {
-  EDGE_WIDTH,
   HALF_EDGE_WIDTH,
+  EDGE_MEASUREMENT_LINE_END_SIZE,
+  EDGE_MEASUREMENT_LINE_SKEW_SIZE,
   EDGE_MEASUREMENT_LINE_COLOR,
   SHAPE_OPTIMIZATION_CONFIG
 } from '../constants'
@@ -16,20 +19,6 @@ import {
 } from '../../../helpers'
 
 import { Text } from './'
-
-const MeasurementLine = (props) => {
-  const { points } = props
-
-  return (
-    <Line
-      points={points}
-      stroke={EDGE_MEASUREMENT_LINE_COLOR}
-      strokeWidth={0.5}
-      lineCap="round"
-      {...SHAPE_OPTIMIZATION_CONFIG}
-    />
-  )
-}
 
 const EdgeMeasurement = (props) => {
   const { borders, pixelsToMeters } = props
@@ -43,56 +32,59 @@ const EdgeMeasurement = (props) => {
       const [p1, p2] = border
       const borderLength = getDistanceBetweenPoints(p1, p2)
       const borderAngle = getAngleBetweenPoints(p1, p2)
-      const nodes = border.map((p) => {
-        return movePointDistanceAngle(
-          p,
-          HALF_EDGE_WIDTH,
-          borderAngle - Math.PI / 2
-        )
+      const rightAngle = borderAngle - Math.PI / 2
+
+      const mainLine = border.map((p) => {
+        return movePointDistanceAngle(p, HALF_EDGE_WIDTH, rightAngle)
       })
+      const lineEnds = border.map((p) => {
+        const lineEnd = movePointDistanceAngle(
+          p,
+          EDGE_MEASUREMENT_LINE_END_SIZE,
+          rightAngle
+        )
+
+        return [p, lineEnd]
+      })
+      const lineSkews = mainLine.map((p) => {
+        const lineSkew = [-Math.PI / 4, (3 * Math.PI) / 4].map((angle) => {
+          return movePointDistanceAngle(
+            p,
+            EDGE_MEASUREMENT_LINE_SKEW_SIZE,
+            borderAngle + angle
+          )
+        })
+
+        return lineSkew
+      })
+      const pointsGroups = [mainLine, ...lineEnds, ...lineSkews]
+
       const textPosition = {
-        x: (nodes[0].x + nodes[1].x) / 2,
-        y: (nodes[0].y + nodes[1].y) / 2
+        x: (mainLine[0].x + mainLine[1].x) / 2,
+        y: (mainLine[0].y + mainLine[1].y) / 2
       }
 
       return (
         <React.Fragment key={`edge-border-${borderIndex}`}>
-          {border.map((p, i) => {
-            const lineEnd = movePointDistanceAngle(
-              p,
-              EDGE_WIDTH,
-              borderAngle - Math.PI / 2
-            )
+          <Shape
+            stroke={EDGE_MEASUREMENT_LINE_COLOR}
+            strokeWidth={0.5}
+            lineCap="round"
+            {...SHAPE_OPTIMIZATION_CONFIG}
+            sceneFunc={(c, shape) => {
+              c.beginPath()
 
-            return (
-              <MeasurementLine
-                key={`edge-border-${borderIndex}-lineEnd-${i}`}
-                points={[p.x, p.y, lineEnd.x, lineEnd.y]}
-              />
-            )
-          })}
-          {nodes.map((p, i) => {
-            const lineSkew = [-Math.PI / 4, (3 * Math.PI) / 4].map((angle) => {
-              return movePointDistanceAngle(
-                p,
-                HALF_EDGE_WIDTH / 1.5,
-                borderAngle + angle
-              )
-            })
+              pointsGroups.forEach((pointsGroup) => {
+                pointsGroup.forEach((point, i) => {
+                  const to = i ? c.lineTo : c.moveTo
 
-            return (
-              <MeasurementLine
-                key={`edge-border-${borderIndex}-lineSkew-${i}`}
-                points={lineSkew.reduce((points, { x, y }) => {
-                  return [...points, x, y]
-                }, [])}
-              />
-            )
-          })}
-          <MeasurementLine
-            points={nodes.reduce((points, { x, y }) => {
-              return [...points, x, y]
-            }, [])}
+                  to.call(c, point.x, point.y)
+                })
+              })
+
+              c.strokeShape(shape)
+              c.closePath()
+            }}
           />
           <Text
             text={`${pixelsToMeters(borderLength)}m`}

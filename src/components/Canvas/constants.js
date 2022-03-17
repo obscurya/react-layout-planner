@@ -19,6 +19,10 @@ export const EDGE_WIDTH = GRID_LINE_STEP
 export const HALF_EDGE_WIDTH = EDGE_WIDTH / 2
 export const EDGE_COLOR = palette.blueGrey[50]
 export const EDGE_BORDER_COLOR = palette.blueGrey[500]
+
+export const EDGE_MEASUREMENT_LINE_END_SIZE =
+  HALF_EDGE_WIDTH + HALF_EDGE_WIDTH / 2
+export const EDGE_MEASUREMENT_LINE_SKEW_SIZE = HALF_EDGE_WIDTH / 2.5
 export const EDGE_MEASUREMENT_LINE_COLOR = palette.blueGrey[300]
 
 export const CURSOR_RADIUS = EDGE_WIDTH

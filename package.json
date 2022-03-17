@@ -21,7 +21,6 @@
     "react-scripts": "5.0.0",
     "styled-components": "^5.3.3",
     "use-deep-compare": "^1.1.0",
-    "use-image": "^1.0.10",
     "web-vitals": "^2.1.0"
   },
   "resolutions": {

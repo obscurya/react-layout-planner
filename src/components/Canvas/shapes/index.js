@@ -1,7 +1,6 @@
-import Grid from './Grid'
 import Cursor from './Cursor'
 import Node from './Node'
-import WallsGradient from './WallsGradient'
+import WallsFilling from './WallsFilling'
 import Polygon from './Polygon'
 import TmpEdge from './TmpEdge'
 import Text from './Text'
@@ -9,10 +8,9 @@ import EdgeBorders from './EdgeBorders'
 import EdgeMeasurement from './EdgeMeasurement'
 
 export {
-  Grid,
   Cursor,
   Node,
-  WallsGradient,
+  WallsFilling,
   Polygon,
   TmpEdge,
   Text,

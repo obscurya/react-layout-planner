@@ -1,21 +1,12 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import useResizeObserver from '@react-hook/resize-observer'
-import { Stage, Layer } from 'react-konva'
+import { Stage } from 'react-konva'
 import Konva from 'konva'
 
 import { CURSOR_TOOL } from '../LayoutPlanner/constants'
 import { STAGE_INITIAL_SCALE, STAGE_SCALE_STEP } from './constants'
 
-import {
-  Grid,
-  Cursor,
-  Node,
-  WallsGradient,
-  Polygon,
-  TmpEdge,
-  EdgeBorders,
-  EdgeMeasurement
-} from './shapes'
+import { GridLayer, ShapesLayer } from './layers'
 
 Konva.dragButtons = [2]
 Konva.angleDeg = false
@@ -56,18 +47,12 @@ const Canvas = (props) => {
     setSizes({ width, height })
   })
 
-  const bindCursorToGrid = (callback) => {
-    const position =
-      stage && 'pointerPos' in stage
-        ? stage.getRelativePointerPosition()
-        : { x: 0, y: 0 }
-    const coords = callback(position)
-
-    if (coords.x === gridCursorCoords.x && coords.y === gridCursorCoords.y) {
-      return
+  const getStageCursorCoords = () => {
+    if (!stage || !('pointerPos' in stage)) {
+      return { x: 0, y: 0 }
     }
 
-    setGridCursorCoords(coords)
+    return stage.getRelativePointerPosition()
   }
 
   const handleMouseMove = () => {
@@ -160,107 +145,6 @@ const Canvas = (props) => {
     return 'default'
   }
 
-  const isNodeHovered = (nodeIndex) => {
-    if (cursor.grabbedObject) {
-      return (
-        cursor.grabbedObject.type === 'node' &&
-        cursor.grabbedObject.index === nodeIndex
-      )
-    }
-
-    if (cursor.hoveredObject) {
-      return (
-        cursor.hoveredObject.type === 'node' &&
-        cursor.hoveredObject.index === nodeIndex
-      )
-    }
-
-    return false
-  }
-
-  const _polygons = useMemo(() => {
-    return polygons.map(({ nodes, center, area, color }, polygonIndex) => {
-      return (
-        <Polygon
-          key={`polygon-${polygonIndex}`}
-          index={polygonIndex}
-          nodes={nodes}
-          center={center}
-          area={area}
-          color={color}
-          pixelsToSquareMeters={pixelsToSquareMeters}
-        />
-      )
-    })
-  }, [polygons])
-
-  const _nodes = useMemo(() => {
-    if (cursor.tool !== CURSOR_TOOL.MOVE) {
-      return null
-    }
-
-    return nodes.map((node, nodeIndex) => {
-      const isHovered = isNodeHovered(nodeIndex)
-
-      return (
-        <Node
-          key={`node-${nodeIndex}`}
-          index={nodeIndex}
-          node={node}
-          isHovered={isHovered}
-        />
-      )
-    })
-  }, [cursor.tool, nodes, isNodeHovered])
-
-  const _edgesMeasurement = useMemo(() => {
-    return edges.map(({ borders }, edgeIndex) => {
-      return (
-        <EdgeMeasurement
-          key={`edge-measurement-${edgeIndex}`}
-          borders={borders}
-          pixelsToMeters={pixelsToMeters}
-        />
-      )
-    })
-  }, [edges])
-
-  const _edgesBorders = useMemo(() => {
-    return edges.map(({ borders }, edgeIndex) => {
-      return <EdgeBorders key={`edge-borders-${edgeIndex}`} borders={borders} />
-    })
-  }, [edges])
-
-  const _tmpEdge = useMemo(() => {
-    if (!tmpEdge) {
-      return null
-    }
-
-    const { nodes, length, angle, isAllowed } = tmpEdge
-
-    if (nodes[0] === 'tmpNode') {
-      return null
-    }
-
-    return (
-      <TmpEdge
-        nodes={nodes}
-        length={length}
-        angle={angle}
-        isAllowed={isAllowed}
-        pixelsToMeters={pixelsToMeters}
-      />
-    )
-  }, [tmpEdge])
-
-  const _cursor = useMemo(() => {
-    if (cursor.tool !== CURSOR_TOOL.DRAW_WALL) {
-      return null
-    }
-
-    return <Cursor coords={cursor.coords} />
-  }, [cursor])
-
   return (
     <Stage
       ref={setStage}
@@ -277,21 +161,23 @@ const Canvas = (props) => {
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
       onContextMenu={handleContextMenu}>
-      <Grid
+      <GridLayer
         sizes={sizes}
         coords={coords}
         scale={scale.x}
-        bindCursorToGrid={bindCursorToGrid}
+        stageCursorCoords={getStageCursorCoords()}
+        gridCursorCoords={gridCursorCoords}
+        setGridCursorCoords={setGridCursorCoords}
       />
-      <Layer listening={false}>
-        {_polygons}
-        <WallsGradient edges={edges} scale={scale.x} />
-        {_nodes}
-        {_edgesMeasurement}
-        {_edgesBorders}
-        {_tmpEdge}
-        {_cursor}
-      </Layer>
+      <ShapesLayer
+        cursor={cursor}
+        tmpEdge={tmpEdge}
+        nodes={nodes}
+        edges={edges}
+        polygons={polygons}
+        pixelsToMeters={pixelsToMeters}
+        pixelsToSquareMeters={pixelsToSquareMeters}
+      />
     </Stage>
   )
 }
