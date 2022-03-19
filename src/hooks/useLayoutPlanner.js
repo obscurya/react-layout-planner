@@ -8,13 +8,10 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
+import { useDeepCompareMemo } from 'use-deep-compare'
 
 import { CURSOR_TOOL } from '../components/LayoutPlanner/constants'
-import {
-  CURSOR_RADIUS,
-  EDGE_WIDTH,
-  HALF_EDGE_WIDTH
-} from '../components/Canvas/constants'
+import { EDGE_WIDTH, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
 
 import {
   isValuePositive,
@@ -30,10 +27,9 @@ import {
 } from '../helpers'
 
 import {
-  pointCircleCollision,
-  lineCircleCollision,
   linePointCollision,
-  lineLineCollision
+  lineLineCollision,
+  linePointProjectionPoint
 } from '../helpers/collision'
 
 const getRandomWallWidth = () => {
@@ -51,8 +47,9 @@ const initialState = {
   cursor: {
     tool: CURSOR_TOOL.DRAW_WALL,
     x: 0,
-    y: 0,
-    r: CURSOR_RADIUS,
+    y: 0
+  },
+  cursorBinding: {
     nodeIndex: null,
     edgePoint: null
   },
@@ -68,6 +65,7 @@ const initialState = {
 
 export const useLayoutPlanner = () => {
   const [cursor, setCursor] = useState(initialState.cursor)
+  const [cursorBinding, setCursorBinding] = useState(initialState.cursorBinding)
   const [tmpEdge, setTmpEdge] = useState(initialState.tmpEdge)
   const [nodes, setNodes] = useState(initialState.nodes)
   const [edges, setEdges] = useState(initialState.edges)
@@ -80,20 +78,22 @@ export const useLayoutPlanner = () => {
   /* CURSOR FUNCTIONS */
 
   const getCursorCoords = () => {
-    if (cursor.nodeIndex !== null) {
-      if (cursor.nodeIndex === 'tmpNode') {
+    if (cursorBinding.nodeIndex !== null) {
+      if (cursorBinding.nodeIndex === 'tmpNode') {
         const { x, y } = tmpEdge.nodes?.[0] || cursor
 
         return { x, y }
       }
 
-      return nodes[cursor.nodeIndex]
+      return nodes[cursorBinding.nodeIndex]
     }
 
-    const { x, y } = cursor.edgePoint || cursor
+    const { x, y } = cursorBinding.edgePoint || cursor
 
     return { x, y }
   }
+
+  const cursorCoords = getCursorCoords()
 
   const setCursorCoords = (x, y) => {
     setCursor({ ...cursor, x, y })
@@ -103,15 +103,27 @@ export const useLayoutPlanner = () => {
     setCursor({ ...cursor, tool })
   }
 
+  const bindCursorToNode = (nodeIndex) => {
+    if (nodeIndex === cursorBinding.nodeIndex) {
+      return
+    }
+
+    setCursorBinding({ nodeIndex, edgePoint: null })
+  }
+
+  const unbindCursorFromNode = () => {
+    setCursorBinding({ nodeIndex: null, edgePoint: null })
+  }
+
   const getHoveredObject = () => {
     if (cursor.tool !== CURSOR_TOOL.MOVE) {
       return null
     }
 
-    if (cursor.nodeIndex !== null) {
+    if (cursorBinding.nodeIndex !== null) {
       return {
         type: 'node',
-        index: cursor.nodeIndex
+        index: cursorBinding.nodeIndex
       }
     }
 
@@ -140,6 +152,35 @@ export const useLayoutPlanner = () => {
     })
   }
 
+  const bindCursorToEdge = (edgeIndex) => {
+    const [p1, p2] = getEdgeNodes(edges[edgeIndex])
+    const projectionPoint = linePointProjectionPoint({ p1, p2 }, cursor)
+    const nodeIndex = nodes.findIndex((node) => {
+      return arePointsEqual(node, projectionPoint)
+    })
+
+    if (nodeIndex !== -1) {
+      bindCursorToNode(nodeIndex)
+      return
+    }
+
+    if (
+      cursorBinding.edgePoint &&
+      arePointsEqual(cursorBinding.edgePoint, projectionPoint)
+    ) {
+      return
+    }
+
+    setCursorBinding({
+      nodeIndex: null,
+      edgePoint: projectionPoint
+    })
+  }
+
+  const unbindCursorFromEdge = () => {
+    setCursorBinding({ nodeIndex: null, edgePoint: null })
+  }
+
   const getEdgeLength = (edge) => {
     const [n1, n2] = getEdgeNodes(edge)
 
@@ -158,7 +199,7 @@ export const useLayoutPlanner = () => {
 
   const beginTmpEdge = () => {
     const node =
-      cursor.nodeIndex === null ? getCursorCoords() : cursor.nodeIndex
+      cursorBinding.nodeIndex === null ? cursorCoords : cursorBinding.nodeIndex
 
     setTmpEdge({ ...tmpEdge, nodes: [node, node] })
   }
@@ -214,6 +255,11 @@ export const useLayoutPlanner = () => {
   const endTmpEdge = () => {
     if (!tmpEdge.isAllowed) {
       setTmpEdge(initialState.tmpEdge)
+
+      if (cursorBinding.nodeIndex === 'tmpNode') {
+        unbindCursorFromNode()
+      }
+
       return
     }
 
@@ -400,69 +446,6 @@ export const useLayoutPlanner = () => {
 
   useEffect(setRoomsEffect, [polygons])
 
-  // привязка курсора к одной из вершин или к одному из ребер
-  // P.S. события мышки на фигурах из konva - кусок говна
-  const cursorBindingEffect = () => {
-    const newCursor = {
-      ...cursor,
-      nodeIndex: null,
-      edgePoint: null
-    }
-    const allNodes = tmpEdge.nodes ? [...nodes, tmpEdge.nodes[0]] : nodes
-
-    const getCollidingNodeIndex = (cursor) => {
-      const collidingNodeIndex = allNodes.findIndex((node, nodeIndex) => {
-        if (
-          grabbedObject?.type === 'node' &&
-          grabbedObject?.index === nodeIndex
-        ) {
-          return false
-        }
-
-        return pointCircleCollision(node, cursor)
-      })
-
-      if (collidingNodeIndex === nodes.length) {
-        return 'tmpNode'
-      }
-
-      return collidingNodeIndex
-    }
-
-    const collidingNodeIndex = getCollidingNodeIndex(newCursor)
-
-    if (collidingNodeIndex !== -1) {
-      newCursor.nodeIndex = collidingNodeIndex
-    } else {
-      for (const edge of edges) {
-        const [p1, p2] = getEdgeNodes(edge)
-        const intersectionPoint = lineCircleCollision({ p1, p2 }, newCursor)
-
-        if (intersectionPoint) {
-          const collidingNodeIndex = getCollidingNodeIndex({
-            ...newCursor,
-            ...intersectionPoint
-          })
-
-          if (collidingNodeIndex !== -1) {
-            newCursor.nodeIndex = collidingNodeIndex
-          } else {
-            newCursor.edgePoint = intersectionPoint
-          }
-
-          break
-        }
-      }
-    }
-
-    // TODO: облегчить сравнение
-    if (JSON.stringify(cursor) !== JSON.stringify(newCursor)) {
-      setCursor(newCursor)
-    }
-  }
-
-  useEffect(cursorBindingEffect, [cursor, nodes, edges])
-
   // совпадают ли вершины ребра (находятся в одной точке)
   const areEdgeNodesEqual = (edge) => {
     const [n1, n2] = getEdgeNodes(edge)
@@ -507,9 +490,9 @@ export const useLayoutPlanner = () => {
     }
 
     const node =
-      cursor.nodeIndex === null || cursor.nodeIndex === 'tmpNode'
-        ? getCursorCoords()
-        : cursor.nodeIndex
+      cursorBinding.nodeIndex === null || cursorBinding.nodeIndex === 'tmpNode'
+        ? cursorCoords
+        : cursorBinding.nodeIndex
     const tmpEdgeNodes = [tmpEdge.nodes[0], node]
 
     let isAllowed = true
@@ -781,15 +764,15 @@ export const useLayoutPlanner = () => {
         return
       }
 
-      setNodes(
-        nodes.map((node, nodeIndex) => {
-          if (nodeIndex === grabbedObject.index) {
-            return newNode
-          }
+      const newNodes = nodes.map((node, nodeIndex) => {
+        if (nodeIndex === grabbedObject.index) {
+          return newNode
+        }
 
-          return node
-        })
-      )
+        return node
+      })
+
+      setNodes(newNodes)
     }
   }
 
@@ -829,6 +812,8 @@ export const useLayoutPlanner = () => {
     }
   }
 
+  /* RETURNED VALUES */
+
   const returnedTmpEdge = tmpEdge.nodes
     ? {
         ...getEdgeData(tmpEdge.nodes),
@@ -836,28 +821,36 @@ export const useLayoutPlanner = () => {
       }
     : null
   const returnedEdges = useMemo(() => {
-    return edges.map((edge, edgeIndex) => {
-      const shape = shapedEdges[edgeIndex]
+    const getPoints = (shape) => {
+      return shape.reduce((points, pointsGroup) => {
+        return [...points, ...pointsGroup]
+      }, [])
+    }
 
-      const getBorders = () => {
+    const getBorders = (shape) => {
+      return shape.map((pointsGroup, groupIndex) => {
+        return [
+          pointsGroup.slice(-1)[0],
+          (shape[groupIndex + 1] || shape[0])[0]
+        ]
+      })
+    }
+
+    return edges
+      .map((edge, edgeIndex) => {
+        const shape = shapedEdges[edgeIndex]
+
         if (!shape) {
           return null
         }
 
-        return shape.map((pointsGroup, groupIndex) => {
-          return [
-            pointsGroup.slice(-1)[0],
-            (shape[groupIndex + 1] || shape[0])[0]
-          ]
-        })
-      }
-
-      return {
-        shape,
-        borders: getBorders()
-      }
-    })
-  }, [edges, shapedEdges, walls])
+        return {
+          points: getPoints(shape),
+          borders: getBorders(shape)
+        }
+      })
+      .filter(Boolean)
+  }, [shapedEdges])
   const returnedPolygons = useMemo(() => {
     return polygons.map((polygon) => {
       const room = getRoomByPolygon(polygon) || {}
@@ -865,12 +858,14 @@ export const useLayoutPlanner = () => {
       return room
     })
   }, [rooms])
-  const returnedCursor = {
-    coords: getCursorCoords(),
-    tool: cursor.tool,
-    hoveredObject,
-    grabbedObject
-  }
+  const returnedCursor = useDeepCompareMemo(() => {
+    return {
+      coords: cursorCoords,
+      tool: cursor.tool,
+      hoveredObject,
+      grabbedObject
+    }
+  }, [cursorCoords, cursor.tool, hoveredObject, grabbedObject])
 
   return {
     tmpEdge: returnedTmpEdge,
@@ -883,6 +878,10 @@ export const useLayoutPlanner = () => {
     beginGrabbing,
     endGrabbing,
     beginTmpEdge,
-    endTmpEdge
+    endTmpEdge,
+    bindCursorToNode,
+    unbindCursorFromNode,
+    bindCursorToEdge,
+    unbindCursorFromEdge
   }
 }

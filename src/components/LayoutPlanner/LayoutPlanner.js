@@ -22,7 +22,11 @@ const LayoutPlanner = () => {
     beginGrabbing,
     endGrabbing,
     beginTmpEdge,
-    endTmpEdge
+    endTmpEdge,
+    bindCursorToNode,
+    unbindCursorFromNode,
+    bindCursorToEdge,
+    unbindCursorFromEdge
   } = useLayoutPlanner()
 
   const [container, setContainer] = useState(null)
@@ -55,6 +59,10 @@ const LayoutPlanner = () => {
           endGrabbing={endGrabbing}
           beginTmpEdge={beginTmpEdge}
           endTmpEdge={endTmpEdge}
+          bindCursorToNode={bindCursorToNode}
+          unbindCursorFromNode={unbindCursorFromNode}
+          bindCursorToEdge={bindCursorToEdge}
+          unbindCursorFromEdge={unbindCursorFromEdge}
         />
       )}
       <Styles.ToolsContainer>

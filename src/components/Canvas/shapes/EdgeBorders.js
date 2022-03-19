@@ -7,10 +7,6 @@ import { EDGE_BORDER_COLOR, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 const EdgeBorders = (props) => {
   const { borders } = props
 
-  if (!borders) {
-    return null
-  }
-
   const borderLines = useDeepCompareMemo(() => {
     return (
       <Shape

@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react'
-import { Group, Rect, Shape } from 'react-konva'
+import { Layer, Group, Rect, Shape } from 'react-konva'
 
 import { WALLS_PATTERN, SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
-const WallsFilling = (props) => {
+const WallsFillingLayer = (props) => {
   const { edges } = props
 
   if (!edges.length) {
@@ -11,19 +11,8 @@ const WallsFilling = (props) => {
   }
 
   const wallsFilling = useMemo(() => {
-    const pointsGroups = edges.reduce((groups, { shape }) => {
-      if (!shape) {
-        return groups
-      }
-
-      const group = [
-        ...shape.reduce((points, pointsGroup) => {
-          return [...points, ...pointsGroup]
-        }, []),
-        shape[0][0]
-      ]
-
-      return [...groups, group]
+    const pointsGroups = edges.reduce((groups, { points }) => {
+      return [...groups, [...points, points[0]]]
     }, [])
 
     if (!pointsGroups.length) {
@@ -126,7 +115,7 @@ const WallsFilling = (props) => {
     )
   }, [edges])
 
-  return wallsFilling
+  return <Layer {...SHAPE_OPTIMIZATION_CONFIG}>{wallsFilling}</Layer>
 }
 
-export default WallsFilling
+export default WallsFillingLayer

@@ -18,13 +18,25 @@ export const linePointCollision = (l, p) => {
   return d1 + d2 >= lineLen - ACCURACY && d1 + d2 <= lineLen + ACCURACY
 }
 
-export const lineCircleCollision = (l, c) => {
+export const linePointProjectionPoint = (l, p) => {
   const x1 = l.p1.x
   const y1 = l.p1.y
   const x2 = l.p2.x
   const y2 = l.p2.y
-  const cx = c.x
-  const cy = c.y
+  const cx = p.x
+  const cy = p.y
+
+  const len = getLineLength(l)
+  const dot = ((cx - x1) * (x2 - x1) + (cy - y1) * (y2 - y1)) / (len * len)
+  const projectionPoint = {
+    x: x1 + dot * (x2 - x1),
+    y: y1 + dot * (y2 - y1)
+  }
+
+  return projectionPoint
+}
+
+export const lineCircleCollision = (l, c) => {
   const r = c.r
 
   const inside1 = pointCircleCollision(l.p1, c)
@@ -34,19 +46,14 @@ export const lineCircleCollision = (l, c) => {
     return true
   }
 
-  const len = getLineLength(l)
-  const dot = ((cx - x1) * (x2 - x1) + (cy - y1) * (y2 - y1)) / (len * len)
-  const closestPoint = {
-    x: x1 + dot * (x2 - x1),
-    y: y1 + dot * (y2 - y1)
-  }
+  const projectionPoint = linePointProjectionPoint(l, c)
 
-  if (!linePointCollision(l, closestPoint)) {
+  if (!linePointCollision(l, projectionPoint)) {
     return false
   }
 
-  if (getDistanceBetweenPoints(closestPoint, c) <= r) {
-    return closestPoint
+  if (getDistanceBetweenPoints(projectionPoint, c) <= r) {
+    return projectionPoint
   }
 
   return false

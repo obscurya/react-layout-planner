@@ -25,7 +25,6 @@ export const EDGE_MEASUREMENT_LINE_END_SIZE =
 export const EDGE_MEASUREMENT_LINE_SKEW_SIZE = HALF_EDGE_WIDTH / 2.5
 export const EDGE_MEASUREMENT_LINE_COLOR = palette.blueGrey[300]
 
-export const CURSOR_RADIUS = EDGE_WIDTH
 export const CURSOR_COLOR = `${palette.blueGrey[500]}33`
 
 export const TMP_EDGE_COLOR_ALLOWED = palette.lightGreen[300]

@@ -23,10 +23,6 @@ import { Text } from './'
 const EdgeMeasurement = (props) => {
   const { borders } = props
 
-  if (!borders) {
-    return null
-  }
-
   const borderMeasurements = useDeepCompareMemo(() => {
     return borders.map((border, borderIndex) => {
       const [p1, p2] = border

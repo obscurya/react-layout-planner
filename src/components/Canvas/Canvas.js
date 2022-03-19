@@ -6,7 +6,12 @@ import Konva from 'konva'
 import { CURSOR_TOOL } from '../LayoutPlanner/constants'
 import { STAGE_INITIAL_SCALE, STAGE_SCALE_STEP } from './constants'
 
-import { GridLayer, ShapesLayer } from './layers'
+import {
+  GridLayer,
+  WallsFillingLayer,
+  InteractiveLayer,
+  ShapesLayer
+} from './layers'
 
 Konva.dragButtons = [2]
 Konva.angleDeg = false
@@ -23,7 +28,11 @@ const Canvas = (props) => {
     beginGrabbing,
     endGrabbing,
     beginTmpEdge,
-    endTmpEdge
+    endTmpEdge,
+    bindCursorToNode,
+    unbindCursorFromNode,
+    bindCursorToEdge,
+    unbindCursorFromEdge
   } = props
 
   const [stage, setStage] = useState(null)
@@ -167,10 +176,20 @@ const Canvas = (props) => {
         gridCursorCoords={gridCursorCoords}
         setGridCursorCoords={setGridCursorCoords}
       />
-      <ShapesLayer
+      <WallsFillingLayer edges={edges} />
+      <InteractiveLayer
         cursor={cursor}
         tmpEdge={tmpEdge}
         nodes={nodes}
+        edges={edges}
+        bindCursorToNode={bindCursorToNode}
+        unbindCursorFromNode={unbindCursorFromNode}
+        bindCursorToEdge={bindCursorToEdge}
+        unbindCursorFromEdge={unbindCursorFromEdge}
+      />
+      <ShapesLayer
+        cursor={cursor}
+        tmpEdge={tmpEdge}
         edges={edges}
         polygons={polygons}
       />
