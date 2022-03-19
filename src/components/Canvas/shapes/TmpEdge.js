@@ -25,30 +25,40 @@ const TmpEdge = (props) => {
       ? TMP_EDGE_COLOR_ALLOWED
       : TMP_EDGE_COLOR_NOT_ALLOWED
     const [n1, n2] = nodes
+
+    return (
+      <Line
+        points={[n1.x, n1.y, n2.x, n2.y]}
+        strokeWidth={EDGE_WIDTH}
+        stroke={color}
+        lineCap="round"
+        {...SHAPE_OPTIMIZATION_CONFIG}
+      />
+    )
+  }, [nodes])
+
+  const renderText = () => {
+    const [n1, n2] = nodes
     const textPosition = {
       x: (n1.x + n2.x) / 2,
       y: (n1.y + n2.y) / 2
     }
 
     return (
-      <>
-        <Line
-          points={[n1.x, n1.y, n2.x, n2.y]}
-          strokeWidth={EDGE_WIDTH}
-          stroke={color}
-          lineCap="round"
-          {...SHAPE_OPTIMIZATION_CONFIG}
-        />
-        <Text
-          text={`≈${pixelsToMeters(length)}m`}
-          position={textPosition}
-          angle={angle}
-        />
-      </>
+      <Text
+        text={`${pixelsToMeters(length)}m`}
+        position={textPosition}
+        angle={angle}
+      />
     )
-  }, [nodes])
+  }
 
-  return tmpEdge
+  return (
+    <>
+      {tmpEdge}
+      {renderText()}
+    </>
+  )
 }
 
 export default TmpEdge

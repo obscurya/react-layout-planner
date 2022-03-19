@@ -4,7 +4,8 @@
 // TODO: возвращать edges -> walls, polygons -> rooms
 // TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
 // TODO: метаданные о помещениях (учесть добавление стен)
-// TODO: попробовать прогонять точки из shapedEdges через getAreaTree для вычисления площадей помещений
+
+// TODO: попробовать прогонять точки из shapedEdges через getAreaTree для вычисления площадей помещений, А ЛУЧШЕ - найти хотя бы одну внутреннюю точку, затем через неё проследить внутренний контур, пока не замкнется
 
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
