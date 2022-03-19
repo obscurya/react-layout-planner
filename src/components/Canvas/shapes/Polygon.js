@@ -21,21 +21,23 @@ const Polygon = (props) => {
     }, [])
 
     return (
-      <>
-        <Line
-          points={points}
-          fill={color}
-          closed
-          {...SHAPE_OPTIMIZATION_CONFIG}
-        />
-        {center && (
-          <Text text={`${pixelsToSquareMeters(area)}m²`} position={center} />
-        )}
-      </>
+      <Line
+        points={points}
+        fill={color}
+        closed
+        {...SHAPE_OPTIMIZATION_CONFIG}
+      />
     )
   }, [nodes])
 
-  return polygon
+  return (
+    <>
+      {polygon}
+      {center && (
+        <Text text={`${pixelsToSquareMeters(area)}m²`} position={center} />
+      )}
+    </>
+  )
 }
 
 export default Polygon

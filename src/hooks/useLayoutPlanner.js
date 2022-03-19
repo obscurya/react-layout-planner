@@ -1,10 +1,10 @@
 // TODO: привязка вершин при перемещении
-
 // TODO: разобраться с deps при мемоизации
 // TODO: проверить, что все мемоизируется правильно
 // TODO: возвращать edges -> walls, polygons -> rooms
 // TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
 // TODO: метаданные о помещениях (учесть добавление стен)
+// TODO: попробовать прогонять точки из shapedEdges через getAreaTree для вычисления площадей помещений
 
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
