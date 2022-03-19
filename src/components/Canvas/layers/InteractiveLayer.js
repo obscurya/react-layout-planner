@@ -43,7 +43,9 @@ const InteractiveLayer = (props) => {
         return false
       }
 
-      if (isNodeHovered()) {
+      const isHovered = isNodeHovered()
+
+      if (isHovered) {
         return HOVERED_NODE_COLOR
       }
 

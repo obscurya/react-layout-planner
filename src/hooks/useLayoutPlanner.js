@@ -821,21 +821,6 @@ export const useLayoutPlanner = () => {
       }
     : null
   const returnedEdges = useMemo(() => {
-    const getPoints = (shape) => {
-      return shape.reduce((points, pointsGroup) => {
-        return [...points, ...pointsGroup]
-      }, [])
-    }
-
-    const getBorders = (shape) => {
-      return shape.map((pointsGroup, groupIndex) => {
-        return [
-          pointsGroup.slice(-1)[0],
-          (shape[groupIndex + 1] || shape[0])[0]
-        ]
-      })
-    }
-
     return edges
       .map((edge, edgeIndex) => {
         const shape = shapedEdges[edgeIndex]
@@ -844,9 +829,24 @@ export const useLayoutPlanner = () => {
           return null
         }
 
+        const getPoints = () => {
+          return shape.reduce((points, pointsGroup) => {
+            return [...points, ...pointsGroup]
+          }, [])
+        }
+
+        const getBorders = () => {
+          return shape.map((pointsGroup, groupIndex) => {
+            return [
+              pointsGroup.slice(-1)[0],
+              (shape[groupIndex + 1] || shape[0])[0]
+            ]
+          })
+        }
+
         return {
-          points: getPoints(shape),
-          borders: getBorders(shape)
+          points: getPoints(),
+          borders: getBorders()
         }
       })
       .filter(Boolean)

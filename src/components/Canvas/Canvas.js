@@ -62,7 +62,7 @@ const Canvas = (props) => {
     return stage.getRelativePointerPosition()
   }
 
-  const handleMouseMove = () => {
+  const handleMouseMove = (e) => {
     // const { x, y } = getStageCursorCoords()
     const { x, y } = gridCursorCoords
 
