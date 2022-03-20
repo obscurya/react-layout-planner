@@ -17,7 +17,6 @@ const LayoutPlanner = () => {
     edges,
     polygons,
     cursor,
-    truePolygons,
     setCursorCoords,
     setCursorTool,
     beginGrabbing,
@@ -55,7 +54,6 @@ const LayoutPlanner = () => {
           edges={edges}
           polygons={polygons}
           cursor={cursor}
-          truePolygons={truePolygons}
           setCursorCoords={setCursorCoords}
           beginGrabbing={beginGrabbing}
           endGrabbing={endGrabbing}

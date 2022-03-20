@@ -5,10 +5,7 @@
 // TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
 // TODO: метаданные о помещениях (учесть добавление стен)
 
-// TODO: попробовать прогонять точки из shapedEdges через getAreaTree для вычисления площадей помещений, А ЛУЧШЕ - найти хотя бы одну внутреннюю точку, затем через неё проследить внутренний контур, пока не замкнется, ХОТЯ наверное надежнее через getAreaTree, только отсекать полигоны, если внутри них есть другие полигоны
-
 import { useState, useEffect, useMemo } from 'react'
-import { getAreaTree } from 'planar-face-discovery'
 import { useDeepCompareMemo } from 'use-deep-compare'
 import pointInPolygon from 'robust-point-in-polygon'
 
@@ -16,7 +13,6 @@ import { CURSOR_TOOL } from '../components/LayoutPlanner/constants'
 import { EDGE_WIDTH, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
 
 import {
-  isValuePositive,
   getDistanceBetweenPoints,
   arePointsEqual,
   getAngleBetweenPoints,
@@ -25,7 +21,8 @@ import {
   compareArrays,
   getPolygonCenter,
   getPolygonArea,
-  getRandomColor
+  getRandomColor,
+  getCentroid
 } from '../helpers'
 
 import {
@@ -62,8 +59,7 @@ const initialState = {
   grabbedObject: null,
   polygons: [],
   walls: [],
-  rooms: [],
-  truePolygons: []
+  rooms: []
 }
 
 export const useLayoutPlanner = () => {
@@ -77,7 +73,6 @@ export const useLayoutPlanner = () => {
   const [polygons, setPolygons] = useState(initialState.polygons)
   const [walls, setWalls] = useState(initialState.walls)
   const [rooms, setRooms] = useState(initialState.rooms)
-  const [truePolygons, setTruePolygons] = useState(initialState.truePolygons)
 
   /* CURSOR FUNCTIONS */
 
@@ -337,118 +332,6 @@ export const useLayoutPlanner = () => {
       edgeToAdd
     ])
   }
-
-  const getPolygonNodes = (polygon) => {
-    return polygon.reduce((nodes, edgeIndex) => {
-      const edgeNodes = getEdgeNodes(edges[Math.abs(edgeIndex)])
-
-      return [
-        ...nodes,
-        isValuePositive(edgeIndex) ? edgeNodes[0] : edgeNodes[1]
-      ]
-    }, [])
-  }
-
-  const getEdgeIndexByNodes = ([n1, n2]) => {
-    let reversed = false
-
-    const edgeIndex = edges.findIndex((edge) => {
-      if (edge[0] === n1 && edge[1] === n2) {
-        return true
-      }
-
-      if (edge[0] === n2 && edge[1] === n1) {
-        reversed = true
-        return true
-      }
-
-      return false
-    })
-
-    if (edgeIndex === -1) {
-      return null
-    }
-
-    return reversed ? -edgeIndex : edgeIndex
-  }
-
-  const createPolygonsEffect = () => {
-    if (!edges.length) {
-      return
-    }
-
-    const minX = Math.min(...nodes.map(({ x }) => x))
-    const minY = Math.min(...nodes.map(({ y }) => y))
-
-    const addX = minX < 0 ? -minX : 0
-    const addY = minY < 0 ? -minY : 0
-
-    const polygonsTree = getAreaTree(
-      nodes.map(({ x, y }) => [x + addX, y + addY]),
-      edges
-    )
-
-    const getPolygon = (node) => {
-      return node.children.reduce(
-        (polygons, child) => {
-          return [...polygons, ...getPolygon(child)]
-        },
-        node.polygon ? [node.polygon] : []
-      )
-    }
-
-    const polygons = getPolygon(polygonsTree).map((polygon) => {
-      return polygon.reduce((polygonEdges, nodeIndex, index) => {
-        if (index === polygon.length - 1) {
-          return polygonEdges
-        }
-
-        return [
-          ...polygonEdges,
-          getEdgeIndexByNodes([nodeIndex, polygon[index + 1]])
-        ]
-      }, [])
-    })
-
-    setPolygons(polygons)
-  }
-
-  useEffect(createPolygonsEffect, [nodes, edges])
-
-  const getRoomByPolygon = (polygon) => {
-    const polygonEdges = polygon.map((edgeIndex) => {
-      return Math.abs(edgeIndex)
-    })
-
-    return rooms.find((room) => {
-      const roomEdges = room.edges.map((edgeIndex) => {
-        return Math.abs(edgeIndex)
-      })
-
-      return compareArrays(polygonEdges, roomEdges)
-    })
-  }
-
-  const setRoomsEffect = () => {
-    const rooms = polygons.map((polygon) => {
-      const nodes = getPolygonNodes(polygon)
-      const center = getPolygonCenter(nodes)
-      const area = getPolygonArea(nodes)
-      const room = getRoomByPolygon(polygon)
-
-      if (room) {
-        return { ...room, nodes, center, area }
-      }
-
-      const color = getRandomColor()
-
-      return { edges: polygon, nodes, center, area, color }
-    })
-
-    setRooms(rooms)
-  }
-
-  useEffect(setRoomsEffect, [polygons])
 
   // совпадают ли вершины ребра (находятся в одной точке)
   const areEdgeNodesEqual = (edge) => {
@@ -770,12 +653,16 @@ export const useLayoutPlanner = () => {
 
   useEffect(createShapedEdgesEffect, [nodes, walls])
 
-  const createTruePolygonsEffect = () => {
-    const borders = shapedEdges.reduce((borders, shapedEdge) => {
+  const createPolygonsEffect = () => {
+    // TODO: refactor
+    // TODO: обрабатывать вложенные полигоны (remplanner и makeyourplan этого не умеют)
+
+    const borders = shapedEdges.reduce((borders, shapedEdge, edgeIndex) => {
       return [
         ...borders,
         ...shapedEdge.borders.map((border) => {
           return {
+            edgeIndex,
             points: border,
             isVisited: false
           }
@@ -831,7 +718,7 @@ export const useLayoutPlanner = () => {
       return areBordersNeighbors(firstBorder.points, lastBorder.points)
     }
 
-    const truePolygons = []
+    const polygons = []
 
     while (!areAllBordersVisited()) {
       const tmpPolygon = []
@@ -854,59 +741,95 @@ export const useLayoutPlanner = () => {
         continue
       }
 
-      const polygon = []
+      const polygon = {
+        edges: [],
+        points: []
+      }
 
-      for (let i = 0; i < tmpPolygon.length - 1; i++) {
-        const border = tmpPolygon[i].points
+      for (let i = 0; i < tmpPolygon.length; i++) {
+        const { edgeIndex, points } = tmpPolygon[i]
+
+        polygon.edges.push(edgeIndex)
+
+        if (i === tmpPolygon.length - 1) {
+          break
+        }
 
         if (i === 0) {
-          const nextBorder = tmpPolygon[i + 1].points
-          const firstPointIndex = border.findIndex((point) => {
+          const nextBorderPoints = tmpPolygon[i + 1].points
+          const firstPointIndex = points.findIndex((point) => {
             return (
-              !arePointsEqual(point, nextBorder[0]) &&
-              !arePointsEqual(point, nextBorder[1])
+              !arePointsEqual(point, nextBorderPoints[0]) &&
+              !arePointsEqual(point, nextBorderPoints[1])
             )
           })
 
           if (firstPointIndex === 0) {
-            polygon.push(...border)
+            polygon.points.push(...points)
           } else {
-            polygon.push(border[1], border[0])
+            polygon.points.push(points[1], points[0])
           }
 
           continue
         }
 
-        const polygonLastPoint = polygon.slice(-1)[0]
+        const polygonLastPoint = polygon.points.slice(-1)[0]
 
-        if (arePointsEqual(border[0], polygonLastPoint)) {
-          polygon.push(border[1])
+        if (arePointsEqual(points[0], polygonLastPoint)) {
+          polygon.points.push(points[1])
         } else {
-          polygon.push(border[0])
+          polygon.points.push(points[0])
         }
       }
 
-      const polygonPoints = polygon.map(({ x, y }) => {
+      const polygonPoints = polygon.points.map(({ x, y }) => {
         return [x, y]
       })
 
-      const nodeInsidePolygon = nodes.find(({ x, y }) => {
+      const shapedEdgeCentroidInsidePolygon = shapedEdges.find((shapedEdge) => {
+        const { x, y } = getCentroid(shapedEdge.points)
         const result = pointInPolygon(polygonPoints, [x, y])
 
         return result === -1
       })
 
-      if (nodeInsidePolygon) {
+      if (shapedEdgeCentroidInsidePolygon) {
         continue
       }
 
-      truePolygons.push(polygon)
+      polygons.push(polygon)
     }
 
-    setTruePolygons(truePolygons)
+    setPolygons(polygons)
   }
 
-  useEffect(createTruePolygonsEffect, [shapedEdges])
+  useEffect(createPolygonsEffect, [shapedEdges])
+
+  const getRoomByPolygon = (polygon) => {
+    return rooms.find((room) => {
+      return compareArrays(polygon.edges, room.edges)
+    })
+  }
+
+  const setRoomsEffect = () => {
+    const rooms = polygons.map((polygon) => {
+      const center = getPolygonCenter(polygon.points)
+      const area = getPolygonArea(polygon.points)
+      const room = getRoomByPolygon(polygon)
+
+      if (room) {
+        return { ...room, center, area }
+      }
+
+      const color = getRandomColor()
+
+      return { edges: polygon.edges, center, area, color }
+    })
+
+    setRooms(rooms)
+  }
+
+  useEffect(setRoomsEffect, [polygons])
 
   const moveGrabbedObjectEffect = () => {
     if (!grabbedObject) {
@@ -988,7 +911,7 @@ export const useLayoutPlanner = () => {
     return polygons.map((polygon) => {
       const room = getRoomByPolygon(polygon) || {}
 
-      return room
+      return { points: polygon.points, ...room }
     })
   }, [rooms])
   const returnedCursor = useDeepCompareMemo(() => {
@@ -1006,7 +929,6 @@ export const useLayoutPlanner = () => {
     edges: returnedEdges,
     polygons: returnedPolygons,
     cursor: returnedCursor,
-    truePolygons,
     setCursorCoords,
     setCursorTool,
     beginGrabbing,

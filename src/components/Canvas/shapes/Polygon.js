@@ -11,10 +11,6 @@ import { Text } from './'
 const Polygon = (props) => {
   const { nodes, center, area, color } = props
 
-  if (!nodes) {
-    return null
-  }
-
   const polygon = useDeepCompareMemo(() => {
     const points = nodes.reduce((points, { x, y }) => {
       return [...points, x, y]

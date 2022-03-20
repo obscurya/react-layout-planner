@@ -106,3 +106,17 @@ export const compareArrays = (arr1, arr2) => {
 
   return arrString1 === arrString2
 }
+
+export const getCentroid = (points) => {
+  const [sumX, sumY] = points.reduce(
+    ([sumX, sumY], point) => {
+      return [sumX + point.x, sumY + point.y]
+    },
+    [0, 0]
+  )
+
+  return {
+    x: sumX / points.length,
+    y: sumY / points.length
+  }
+}

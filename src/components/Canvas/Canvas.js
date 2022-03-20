@@ -24,7 +24,6 @@ const Canvas = (props) => {
     edges,
     polygons,
     cursor,
-    truePolygons,
     setCursorCoords,
     beginGrabbing,
     endGrabbing,
@@ -193,7 +192,6 @@ const Canvas = (props) => {
         tmpEdge={tmpEdge}
         edges={edges}
         polygons={polygons}
-        truePolygons={truePolygons}
       />
     </Stage>
   )
