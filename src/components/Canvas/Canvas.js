@@ -179,7 +179,6 @@ const Canvas = (props) => {
       <WallsFillingLayer edges={edges} />
       <InteractiveLayer
         cursor={cursor}
-        tmpEdge={tmpEdge}
         nodes={nodes}
         edges={edges}
         bindCursorToNode={bindCursorToNode}

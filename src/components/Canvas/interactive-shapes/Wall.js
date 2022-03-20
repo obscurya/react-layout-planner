@@ -22,6 +22,7 @@ const Wall = (props) => {
         return [...points, x, y]
       }, [])}
       closed
+      perfectDrawEnabled={false}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     />

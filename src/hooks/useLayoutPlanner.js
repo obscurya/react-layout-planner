@@ -4,6 +4,7 @@
 // TODO: возвращать edges -> walls, polygons -> rooms
 // TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
 // TODO: метаданные о помещениях (учесть добавление стен)
+// TODO: поправить странную багулю про same vertices
 
 import { useState, useEffect, useMemo } from 'react'
 import { useDeepCompareMemo } from 'use-deep-compare'
@@ -78,12 +79,6 @@ export const useLayoutPlanner = () => {
 
   const getCursorCoords = () => {
     if (cursorBinding.nodeIndex !== null) {
-      if (cursorBinding.nodeIndex === 'tmpNode') {
-        const { x, y } = tmpEdge.nodes?.[0] || cursor
-
-        return { x, y }
-      }
-
       return nodes[cursorBinding.nodeIndex]
     }
 
@@ -254,11 +249,6 @@ export const useLayoutPlanner = () => {
   const endTmpEdge = () => {
     if (!tmpEdge.isAllowed) {
       setTmpEdge(initialState.tmpEdge)
-
-      if (cursorBinding.nodeIndex === 'tmpNode') {
-        unbindCursorFromNode()
-      }
-
       return
     }
 
@@ -270,6 +260,8 @@ export const useLayoutPlanner = () => {
       setEdges([...edges, edgeToAdd])
       return
     }
+
+    bindCursorToNode(edgeToAdd[1])
 
     const newNodes = [...nodes, ...nodesToAdd]
 
@@ -377,9 +369,7 @@ export const useLayoutPlanner = () => {
     }
 
     const node =
-      cursorBinding.nodeIndex === null || cursorBinding.nodeIndex === 'tmpNode'
-        ? cursorCoords
-        : cursorBinding.nodeIndex
+      cursorBinding.nodeIndex === null ? cursorCoords : cursorBinding.nodeIndex
     const tmpEdgeNodes = [tmpEdge.nodes[0], node]
 
     let isAllowed = true
@@ -888,13 +878,10 @@ export const useLayoutPlanner = () => {
   useEffect(setWallsEffect, [edges])
 
   const getEdgeData = (edge) => {
-    const wall = getWallByEdge(edge)
-
     return {
       nodes: getEdgeNodes(edge),
       length: getEdgeLength(edge),
-      angle: getEdgeAngle(edge),
-      width: wall?.width || EDGE_WIDTH
+      angle: getEdgeAngle(edge)
     }
   }
 

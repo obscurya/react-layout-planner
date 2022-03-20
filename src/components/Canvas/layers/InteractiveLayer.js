@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Layer } from 'react-konva'
 import { useDeepCompareCallback } from 'use-deep-compare'
 
@@ -10,7 +10,6 @@ import { Node, Wall } from '../interactive-shapes'
 const InteractiveLayer = (props) => {
   const {
     cursor,
-    tmpEdge,
     nodes,
     edges,
     bindCursorToNode,
@@ -54,37 +53,6 @@ const InteractiveLayer = (props) => {
     [cursor.tool, cursor.grabbedObject, cursor.hoveredObject]
   )
 
-  const tmpNode = useMemo(() => {
-    if (!tmpEdge) {
-      return null
-    }
-
-    return (
-      <Node
-        index="tmpNode"
-        node={tmpEdge.nodes[0]}
-        fill="transparent"
-        bindCursorToNode={bindCursorToNode}
-        unbindCursorFromNode={unbindCursorFromNode}
-      />
-    )
-  }, [tmpEdge])
-
-  const memoizedNodes = useMemo(() => {
-    return nodes.map((node, nodeIndex) => {
-      return (
-        <Node
-          key={`node-${nodeIndex}`}
-          index={nodeIndex}
-          node={node}
-          fill={getNodeFill(nodeIndex)}
-          bindCursorToNode={bindCursorToNode}
-          unbindCursorFromNode={unbindCursorFromNode}
-        />
-      )
-    })
-  }, [cursor.tool, nodes, getNodeFill])
-
   return (
     <Layer>
       {edges.map(({ points }, edgeIndex) => {
@@ -98,8 +66,18 @@ const InteractiveLayer = (props) => {
           />
         )
       })}
-      {tmpNode}
-      {memoizedNodes}
+      {nodes.map((node, nodeIndex) => {
+        return (
+          <Node
+            key={`node-${nodeIndex}`}
+            index={nodeIndex}
+            node={node}
+            fill={getNodeFill(nodeIndex)}
+            bindCursorToNode={bindCursorToNode}
+            unbindCursorFromNode={unbindCursorFromNode}
+          />
+        )
+      })}
     </Layer>
   )
 }
