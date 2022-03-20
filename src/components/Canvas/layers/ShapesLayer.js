@@ -9,11 +9,12 @@ import {
   Polygon,
   TmpEdge,
   EdgeBorders,
-  EdgeMeasurement
+  EdgeMeasurement,
+  TruePolygon
 } from '../shapes'
 
 const ShapesLayer = (props) => {
-  const { cursor, tmpEdge, edges, polygons } = props
+  const { cursor, tmpEdge, edges, polygons, truePolygons } = props
 
   const renderCursor = () => {
     if (cursor.tool !== CURSOR_TOOL.DRAW_WALL) {
@@ -25,7 +26,7 @@ const ShapesLayer = (props) => {
 
   return (
     <Layer {...SHAPE_OPTIMIZATION_CONFIG}>
-      {polygons.map(({ nodes, center, area, color }, polygonIndex) => {
+      {/* {polygons.map(({ nodes, center, area, color }, polygonIndex) => {
         return (
           <Polygon
             key={`polygon-${polygonIndex}`}
@@ -33,6 +34,14 @@ const ShapesLayer = (props) => {
             center={center}
             area={area}
             color={color}
+          />
+        )
+      })} */}
+      {truePolygons.map((truePolygon, truePolygonIndex) => {
+        return (
+          <TruePolygon
+            key={`truePolygon-${truePolygonIndex}`}
+            nodes={truePolygon}
           />
         )
       })}

@@ -5,11 +5,12 @@
 // TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
 // TODO: метаданные о помещениях (учесть добавление стен)
 
-// TODO: попробовать прогонять точки из shapedEdges через getAreaTree для вычисления площадей помещений, А ЛУЧШЕ - найти хотя бы одну внутреннюю точку, затем через неё проследить внутренний контур, пока не замкнется
+// TODO: попробовать прогонять точки из shapedEdges через getAreaTree для вычисления площадей помещений, А ЛУЧШЕ - найти хотя бы одну внутреннюю точку, затем через неё проследить внутренний контур, пока не замкнется, ХОТЯ наверное надежнее через getAreaTree, только отсекать полигоны, если внутри них есть другие полигоны
 
 import { useState, useEffect, useMemo } from 'react'
 import { getAreaTree } from 'planar-face-discovery'
 import { useDeepCompareMemo } from 'use-deep-compare'
+import pointInPolygon from 'robust-point-in-polygon'
 
 import { CURSOR_TOOL } from '../components/LayoutPlanner/constants'
 import { EDGE_WIDTH, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
@@ -61,7 +62,8 @@ const initialState = {
   grabbedObject: null,
   polygons: [],
   walls: [],
-  rooms: []
+  rooms: [],
+  truePolygons: []
 }
 
 export const useLayoutPlanner = () => {
@@ -75,6 +77,7 @@ export const useLayoutPlanner = () => {
   const [polygons, setPolygons] = useState(initialState.polygons)
   const [walls, setWalls] = useState(initialState.walls)
   const [rooms, setRooms] = useState(initialState.rooms)
+  const [truePolygons, setTruePolygons] = useState(initialState.truePolygons)
 
   /* CURSOR FUNCTIONS */
 
@@ -596,9 +599,10 @@ export const useLayoutPlanner = () => {
   const createShapedEdge = (edge) => {
     const wall = getWallByEdge(edge)
     const halfEdgeWidth = wall ? wall.width / 2 : HALF_EDGE_WIDTH
+    const edgeNodesNeighborNodes = getEdgeNodesNeighborNodes(edge)
 
-    return Object.entries(getEdgeNodesNeighborNodes(edge)).reduce(
-      (points, [nodeIndexStr, neighborNodes]) => {
+    const shape = Object.entries(edgeNodesNeighborNodes).reduce(
+      (pointsGroups, [nodeIndexStr, neighborNodes]) => {
         const nodeIndex = Number(nodeIndexStr)
         const node = nodes[nodeIndex]
         const edgeAngle = getEdgeAngle(edge, nodeIndex !== edge[0]) // угол самого ребра
@@ -617,7 +621,7 @@ export const useLayoutPlanner = () => {
         // или не выполняются условия (маленький угол)
         const cutCorner = () => {
           return [
-            ...points,
+            ...pointsGroups,
             ...RIGHT_ANGLES.map((rightAngle) => {
               return [getRightAnglePoint(rightAngle)]
             })
@@ -730,10 +734,30 @@ export const useLayoutPlanner = () => {
 
         const [p1, p2] = cornerPoints
 
-        return [...points, [p1, node, p2]]
+        return [...pointsGroups, [p1, node, p2]]
       },
       []
     )
+
+    const getPoints = () => {
+      return shape.reduce((points, pointsGroup) => {
+        return [...points, ...pointsGroup]
+      }, [])
+    }
+
+    const getBorders = () => {
+      return shape.map((pointsGroup, groupIndex) => {
+        return [
+          pointsGroup.slice(-1)[0],
+          (shape[groupIndex + 1] || shape[0])[0]
+        ]
+      })
+    }
+
+    return {
+      points: getPoints(),
+      borders: getBorders()
+    }
   }
 
   const createShapedEdgesEffect = () => {
@@ -745,6 +769,144 @@ export const useLayoutPlanner = () => {
   }
 
   useEffect(createShapedEdgesEffect, [nodes, walls])
+
+  const createTruePolygonsEffect = () => {
+    const borders = shapedEdges.reduce((borders, shapedEdge) => {
+      return [
+        ...borders,
+        ...shapedEdge.borders.map((border) => {
+          return {
+            points: border,
+            isVisited: false
+          }
+        })
+      ]
+    }, [])
+
+    const areAllBordersVisited = () => {
+      return borders.every((border) => {
+        return border.isVisited
+      })
+    }
+
+    const areBordersNeighbors = (borderPoints1, borderPoints2) => {
+      return (
+        arePointsEqual(borderPoints1[0], borderPoints2[0]) ||
+        arePointsEqual(borderPoints1[0], borderPoints2[1]) ||
+        arePointsEqual(borderPoints1[1], borderPoints2[0]) ||
+        arePointsEqual(borderPoints1[1], borderPoints2[1])
+      )
+    }
+
+    const getUnvisitedNeighborBorder = (border) => {
+      return borders.find((neighborBorder) => {
+        if (neighborBorder.isVisited) {
+          return false
+        }
+
+        return areBordersNeighbors(border.points, neighborBorder.points)
+      })
+    }
+
+    const visitBorder = (border) => {
+      border.isVisited = true
+    }
+
+    const getUnvisitedBorder = () => {
+      const unvisitedBorder = borders.find((border) => {
+        return !border.isVisited
+      })
+
+      if (unvisitedBorder) {
+        visitBorder(unvisitedBorder)
+      }
+
+      return unvisitedBorder
+    }
+
+    const isPolygonClosed = (polygon) => {
+      const [firstBorder] = polygon
+      const [lastBorder] = polygon.slice(-1)
+
+      return areBordersNeighbors(firstBorder.points, lastBorder.points)
+    }
+
+    const truePolygons = []
+
+    while (!areAllBordersVisited()) {
+      const tmpPolygon = []
+
+      let currentBorder = getUnvisitedBorder()
+
+      while (true) {
+        tmpPolygon.push(currentBorder)
+
+        currentBorder = getUnvisitedNeighborBorder(currentBorder)
+
+        if (currentBorder) {
+          visitBorder(currentBorder)
+        } else {
+          break
+        }
+      }
+
+      if (!isPolygonClosed(tmpPolygon)) {
+        continue
+      }
+
+      const polygon = []
+
+      for (let i = 0; i < tmpPolygon.length - 1; i++) {
+        const border = tmpPolygon[i].points
+
+        if (i === 0) {
+          const nextBorder = tmpPolygon[i + 1].points
+          const firstPointIndex = border.findIndex((point) => {
+            return (
+              !arePointsEqual(point, nextBorder[0]) &&
+              !arePointsEqual(point, nextBorder[1])
+            )
+          })
+
+          if (firstPointIndex === 0) {
+            polygon.push(...border)
+          } else {
+            polygon.push(border[1], border[0])
+          }
+
+          continue
+        }
+
+        const polygonLastPoint = polygon.slice(-1)[0]
+
+        if (arePointsEqual(border[0], polygonLastPoint)) {
+          polygon.push(border[1])
+        } else {
+          polygon.push(border[0])
+        }
+      }
+
+      const polygonPoints = polygon.map(({ x, y }) => {
+        return [x, y]
+      })
+
+      const nodeInsidePolygon = nodes.find(({ x, y }) => {
+        const result = pointInPolygon(polygonPoints, [x, y])
+
+        return result === -1
+      })
+
+      if (nodeInsidePolygon) {
+        continue
+      }
+
+      truePolygons.push(polygon)
+    }
+
+    setTruePolygons(truePolygons)
+  }
+
+  useEffect(createTruePolygonsEffect, [shapedEdges])
 
   const moveGrabbedObjectEffect = () => {
     if (!grabbedObject) {
@@ -821,37 +983,7 @@ export const useLayoutPlanner = () => {
         isAllowed: tmpEdge.isAllowed
       }
     : null
-  const returnedEdges = useMemo(() => {
-    return edges
-      .map((edge, edgeIndex) => {
-        const shape = shapedEdges[edgeIndex]
-
-        if (!shape) {
-          return null
-        }
-
-        const getPoints = () => {
-          return shape.reduce((points, pointsGroup) => {
-            return [...points, ...pointsGroup]
-          }, [])
-        }
-
-        const getBorders = () => {
-          return shape.map((pointsGroup, groupIndex) => {
-            return [
-              pointsGroup.slice(-1)[0],
-              (shape[groupIndex + 1] || shape[0])[0]
-            ]
-          })
-        }
-
-        return {
-          points: getPoints(),
-          borders: getBorders()
-        }
-      })
-      .filter(Boolean)
-  }, [shapedEdges])
+  const returnedEdges = shapedEdges
   const returnedPolygons = useMemo(() => {
     return polygons.map((polygon) => {
       const room = getRoomByPolygon(polygon) || {}
@@ -874,6 +1006,7 @@ export const useLayoutPlanner = () => {
     edges: returnedEdges,
     polygons: returnedPolygons,
     cursor: returnedCursor,
+    truePolygons,
     setCursorCoords,
     setCursorTool,
     beginGrabbing,
