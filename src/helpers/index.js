@@ -106,6 +106,10 @@ export const transformPointsToGeoJSON = (
 }
 
 export const getPolygonCenter = (polygonPoints, innerPolygonsPoints = []) => {
+  if (polygonPoints.length < 3) {
+    return null
+  }
+
   const [x, y] = polylabel(
     transformPointsToGeoJSON(polygonPoints, innerPolygonsPoints)
   )

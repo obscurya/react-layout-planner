@@ -1,6 +1,7 @@
 import React from 'react'
 import { Line } from 'react-konva'
-import { useDeepCompareMemo } from 'use-deep-compare'
+
+import { memoizeComponent } from '../../../helpers/memo'
 
 import {
   EDGE_WIDTH,
@@ -21,22 +22,8 @@ const TmpEdge = (props) => {
     return null
   }
 
-  const tmpEdge = useDeepCompareMemo(() => {
-    const color = isAllowed
-      ? TMP_EDGE_COLOR_ALLOWED
-      : TMP_EDGE_COLOR_NOT_ALLOWED
-    const [n1, n2] = nodes
-
-    return (
-      <Line
-        points={[n1.x, n1.y, n2.x, n2.y]}
-        strokeWidth={EDGE_WIDTH}
-        stroke={color}
-        lineCap="round"
-        {...SHAPE_OPTIMIZATION_CONFIG}
-      />
-    )
-  }, [nodes])
+  const color = isAllowed ? TMP_EDGE_COLOR_ALLOWED : TMP_EDGE_COLOR_NOT_ALLOWED
+  const [n1, n2] = nodes
 
   const renderText = () => {
     const textPosition = getCentroid(nodes)
@@ -52,10 +39,16 @@ const TmpEdge = (props) => {
 
   return (
     <>
-      {tmpEdge}
+      <Line
+        points={[n1.x, n1.y, n2.x, n2.y]}
+        strokeWidth={EDGE_WIDTH}
+        stroke={color}
+        lineCap="round"
+        {...SHAPE_OPTIMIZATION_CONFIG}
+      />
       {renderText()}
     </>
   )
 }
 
-export default TmpEdge
+export default memoizeComponent(TmpEdge)

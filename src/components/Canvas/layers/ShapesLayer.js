@@ -5,11 +5,17 @@ import { CURSOR_TOOL } from '../../LayoutPlanner/constants'
 import { SHAPE_OPTIMIZATION_CONFIG } from '../constants'
 
 import {
+  pixelsToSquareMeters,
+  pixelsToMeters
+} from '../../LayoutPlanner/helpers'
+
+import {
   Cursor,
   Polygon,
   TmpEdge,
   EdgeBorders,
-  EdgeMeasurement
+  EdgeMeasurement,
+  Text
 } from '../shapes'
 
 const ShapesLayer = (props) => {
@@ -25,29 +31,42 @@ const ShapesLayer = (props) => {
 
   return (
     <Layer {...SHAPE_OPTIMIZATION_CONFIG}>
-      {polygons.map(
-        (
-          { points, innerPolygonsPoints, center, area, color },
-          polygonIndex
-        ) => {
-          return (
-            <Polygon
-              key={`polygon-${polygonIndex}`}
-              points={points}
-              innerPolygonsPoints={innerPolygonsPoints}
-              center={center}
-              area={area}
-              color={color}
-            />
-          )
+      {polygons.map((polygon, polygonIndex) => {
+        return <Polygon key={`polygon-${polygonIndex}`} {...polygon} />
+      })}
+      {polygons.map(({ center, area }, polygonIndex) => {
+        if (!center) {
+          return null
         }
-      )}
+
+        return (
+          <Text
+            key={`polygon-text-${polygonIndex}`}
+            text={`${pixelsToSquareMeters(area)}m²`}
+            position={center}
+          />
+        )
+      })}
       {edges.map(({ borders }, edgeIndex) => {
         return (
           <EdgeMeasurement
             key={`edge-measurement-${edgeIndex}`}
             borders={borders}
           />
+        )
+      })}
+      {edges.map(({ borders }, edgeIndex) => {
+        return borders.map(
+          ({ borderLength, textPosition, borderAngle }, borderIndex) => {
+            return (
+              <Text
+                key={`edge-${edgeIndex}-border-text-${borderIndex}`}
+                text={`${pixelsToMeters(borderLength)}m`}
+                position={textPosition}
+                angle={borderAngle}
+              />
+            )
+          }
         )
       })}
       {edges.map(({ borders }, edgeIndex) => {

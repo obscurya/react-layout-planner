@@ -177,6 +177,12 @@ const Canvas = (props) => {
         setGridCursorCoords={setGridCursorCoords}
       />
       <WallsFillingLayer edges={edges} />
+      <ShapesLayer
+        cursor={cursor}
+        tmpEdge={tmpEdge}
+        edges={edges}
+        polygons={polygons}
+      />
       <InteractiveLayer
         cursor={cursor}
         nodes={nodes}
@@ -185,12 +191,6 @@ const Canvas = (props) => {
         unbindCursorFromNode={unbindCursorFromNode}
         bindCursorToEdge={bindCursorToEdge}
         unbindCursorFromEdge={unbindCursorFromEdge}
-      />
-      <ShapesLayer
-        cursor={cursor}
-        tmpEdge={tmpEdge}
-        edges={edges}
-        polygons={polygons}
       />
     </Stage>
   )

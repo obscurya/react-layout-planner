@@ -8,7 +8,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { useDeepCompareMemo } from 'use-deep-compare'
 
 import { CURSOR_TOOL } from '../components/LayoutPlanner/constants'
-import { EDGE_WIDTH, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
+import {
+  EDGE_WIDTH,
+  HALF_EDGE_WIDTH,
+  EDGE_MEASUREMENT_LINE_END_SIZE,
+  EDGE_MEASUREMENT_LINE_SKEW_SIZE
+} from '../components/Canvas/constants'
 
 import {
   getDistanceBetweenPoints,
@@ -987,7 +992,53 @@ export const useLayoutPlanner = () => {
         isAllowed: tmpEdge.isAllowed
       }
     : null
-  const returnedEdges = shapedEdges
+  const returnedEdges = useMemo(() => {
+    return shapedEdges.map((shapedEdge) => {
+      return {
+        ...shapedEdge,
+        borders: shapedEdge.borders.map((border) => {
+          const [p1, p2] = border
+          const borderLength = getDistanceBetweenPoints(p1, p2)
+          const borderAngle = getAngleBetweenPoints(p1, p2)
+          const rightAngle = borderAngle - Math.PI / 2
+          const mainLine = border.map((p) => {
+            return movePointDistanceAngle(p, HALF_EDGE_WIDTH, rightAngle)
+          })
+          const lineEnds = border.map((p) => {
+            const lineEnd = movePointDistanceAngle(
+              p,
+              EDGE_MEASUREMENT_LINE_END_SIZE,
+              rightAngle
+            )
+
+            return [p, lineEnd]
+          })
+          const lineSkews = mainLine.map((p) => {
+            const lineSkew = [-Math.PI / 4, (3 * Math.PI) / 4].map((angle) => {
+              return movePointDistanceAngle(
+                p,
+                EDGE_MEASUREMENT_LINE_SKEW_SIZE,
+                borderAngle + angle
+              )
+            })
+
+            return lineSkew
+          })
+          const textPosition = getCentroid(mainLine)
+
+          return {
+            points: border,
+            borderLength,
+            borderAngle,
+            mainLine,
+            lineEnds,
+            lineSkews,
+            textPosition
+          }
+        })
+      }
+    })
+  }, [shapedEdges])
   const returnedPolygons = useMemo(() => {
     return polygons.map((polygon) => {
       const room = getRoomByPolygon(polygon) || {}

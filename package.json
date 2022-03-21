@@ -12,6 +12,7 @@
     "@testing-library/jest-dom": "^5.14.1",
     "@testing-library/react": "^12.0.0",
     "@testing-library/user-event": "^13.2.1",
+    "dequal": "^2.0.2",
     "konva": "^8.3.3",
     "polylabel": "^1.1.0",
     "react": "^17.0.2",

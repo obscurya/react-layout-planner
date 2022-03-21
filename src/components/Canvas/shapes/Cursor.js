@@ -1,6 +1,8 @@
 import React from 'react'
 import { Circle } from 'react-konva'
 
+import { memoizeComponent } from '../../../helpers/memo'
+
 import {
   NODE_RADIUS,
   CURSOR_COLOR,
@@ -20,4 +22,4 @@ const Cursor = (props) => {
   )
 }
 
-export default Cursor
+export default memoizeComponent(Cursor)
