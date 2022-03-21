@@ -9,6 +9,7 @@ import {
   SHAPE_OPTIMIZATION_CONFIG
 } from '../constants'
 
+import { getCentroid } from '../../../helpers'
 import { pixelsToMeters } from '../../LayoutPlanner/helpers'
 
 import { Text } from './'
@@ -38,11 +39,7 @@ const TmpEdge = (props) => {
   }, [nodes])
 
   const renderText = () => {
-    const [n1, n2] = nodes
-    const textPosition = {
-      x: (n1.x + n2.x) / 2,
-      y: (n1.y + n2.y) / 2
-    }
+    const textPosition = getCentroid(nodes)
 
     return (
       <Text

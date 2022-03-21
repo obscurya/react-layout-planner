@@ -1,3 +1,5 @@
+import pointInPolygon from 'robust-point-in-polygon'
+
 import { ACCURACY, getDistanceBetweenPoints, getLineLength } from './'
 
 export const circleCircleCollision = (c1, c2) => {
@@ -85,4 +87,21 @@ export const lineLineCollision = (l1, l2) => {
   }
 
   return false
+}
+
+const objPointToArray = (point) => {
+  return [point.x, point.y]
+}
+
+export const isPointInsidePolygon = (point, polygonPoints) => {
+  const polygonPointsArray = polygonPoints.map(objPointToArray)
+  const result = pointInPolygon(polygonPointsArray, objPointToArray(point))
+
+  return result === -1
+}
+
+export const isPolygonInsidePolygon = (polygonPoints1, polygonPoints2) => {
+  return polygonPoints1.every((point) => {
+    return isPointInsidePolygon(point, polygonPoints2)
+  })
 }

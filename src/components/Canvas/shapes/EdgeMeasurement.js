@@ -13,7 +13,8 @@ import {
 import {
   getAngleBetweenPoints,
   getDistanceBetweenPoints,
-  movePointDistanceAngle
+  movePointDistanceAngle,
+  getCentroid
 } from '../../../helpers'
 
 import { pixelsToMeters } from '../../LayoutPlanner/helpers'
@@ -92,10 +93,7 @@ const EdgeMeasurement = (props) => {
       {borderMeasurements}
       {bordersData.map(
         ({ borderLength, borderAngle, mainLine }, borderIndex) => {
-          const textPosition = {
-            x: (mainLine[0].x + mainLine[1].x) / 2,
-            y: (mainLine[0].y + mainLine[1].y) / 2
-          }
+          const textPosition = getCentroid(mainLine)
 
           return (
             <Text

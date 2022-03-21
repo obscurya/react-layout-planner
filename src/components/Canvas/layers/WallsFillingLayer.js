@@ -85,6 +85,7 @@ const WallsFillingLayer = (props) => {
               to.call(c, point.x, point.y)
             })
           })
+
           c.closePath()
         }}
         {...SHAPE_OPTIMIZATION_CONFIG}>

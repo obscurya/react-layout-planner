@@ -1,14 +1,11 @@
 // TODO: привязка вершин при перемещении
-// TODO: разобраться с deps при мемоизации
-// TODO: проверить, что все мемоизируется правильно
 // TODO: возвращать edges -> walls, polygons -> rooms
-// TODO: вычислять все, что нужно для рисования в хуке (вынести логику из shapes)
 // TODO: метаданные о помещениях (учесть добавление стен)
-// TODO: поправить странную багулю про same vertices
+// TODO: направляющие, горизонтальная/вертикальная привязка к nodes
+// TODO: углы углов
 
 import { useState, useEffect, useMemo } from 'react'
 import { useDeepCompareMemo } from 'use-deep-compare'
-import pointInPolygon from 'robust-point-in-polygon'
 
 import { CURSOR_TOOL } from '../components/LayoutPlanner/constants'
 import { EDGE_WIDTH, HALF_EDGE_WIDTH } from '../components/Canvas/constants'
@@ -21,7 +18,7 @@ import {
   movePointDistanceAngle,
   compareArrays,
   getPolygonCenter,
-  getPolygonArea,
+  getPolygonWithInnerPolygonsArea,
   getRandomColor,
   getCentroid
 } from '../helpers'
@@ -29,7 +26,9 @@ import {
 import {
   linePointCollision,
   lineLineCollision,
-  linePointProjectionPoint
+  linePointProjectionPoint,
+  isPointInsidePolygon,
+  isPolygonInsidePolygon
 } from '../helpers/collision'
 
 const getRandomWallWidth = () => {
@@ -634,6 +633,8 @@ export const useLayoutPlanner = () => {
   }
 
   const createShapedEdgesEffect = () => {
+    // TODO: оптимизировать, пересчитывать shapedEdges только для тех стен, которые могли измениться
+
     const shapedEdges = edges.map((edge) => {
       return createShapedEdge(edge)
     })
@@ -644,9 +645,6 @@ export const useLayoutPlanner = () => {
   useEffect(createShapedEdgesEffect, [nodes, walls])
 
   const createPolygonsEffect = () => {
-    // TODO: refactor
-    // TODO: обрабатывать вложенные полигоны (remplanner и makeyourplan этого не умеют)
-
     const borders = shapedEdges.reduce((borders, shapedEdge, edgeIndex) => {
       return [
         ...borders,
@@ -675,17 +673,11 @@ export const useLayoutPlanner = () => {
       )
     }
 
-    const getUnvisitedNeighborBorder = (border) => {
-      return borders.find((neighborBorder) => {
-        if (neighborBorder.isVisited) {
-          return false
-        }
-
-        return areBordersNeighbors(border.points, neighborBorder.points)
-      })
-    }
-
     const visitBorder = (border) => {
+      if (!border) {
+        return
+      }
+
       border.isVisited = true
     }
 
@@ -694,101 +686,197 @@ export const useLayoutPlanner = () => {
         return !border.isVisited
       })
 
-      if (unvisitedBorder) {
-        visitBorder(unvisitedBorder)
-      }
+      visitBorder(unvisitedBorder)
 
       return unvisitedBorder
     }
 
-    const isPolygonClosed = (polygon) => {
-      const [firstBorder] = polygon
-      const [lastBorder] = polygon.slice(-1)
+    const getUnvisitedNeighborBorder = (border) => {
+      const unvisitedNeighborBorder = borders.find((neighborBorder) => {
+        if (neighborBorder.isVisited) {
+          return false
+        }
+
+        return areBordersNeighbors(border.points, neighborBorder.points)
+      })
+
+      visitBorder(unvisitedNeighborBorder)
+
+      return unvisitedNeighborBorder
+    }
+
+    const arePolygonBordersClosed = (polygonBorders) => {
+      const [firstBorder] = polygonBorders
+      const [lastBorder] = polygonBorders.slice(-1)
 
       return areBordersNeighbors(firstBorder.points, lastBorder.points)
     }
 
-    const polygons = []
+    const tmpPolygons = []
 
     while (!areAllBordersVisited()) {
-      const tmpPolygon = []
+      const polygonBorders = []
 
-      let currentBorder = getUnvisitedBorder()
+      let border = getUnvisitedBorder() // первая попавшаяся не посещенная линия
 
-      while (true) {
-        tmpPolygon.push(currentBorder)
+      // пока можем найти линию, собираем замкнутый контур из линий
+      while (border) {
+        polygonBorders.push(border)
 
-        currentBorder = getUnvisitedNeighborBorder(currentBorder)
-
-        if (currentBorder) {
-          visitBorder(currentBorder)
-        } else {
-          break
-        }
+        // не посещенная линия по соседству с предыдущей линией
+        border = getUnvisitedNeighborBorder(border)
       }
 
-      if (!isPolygonClosed(tmpPolygon)) {
+      // если контур не замыкается в начале, игнорируем его - это не контур
+      if (!arePolygonBordersClosed(polygonBorders)) {
         continue
       }
 
-      const polygon = {
-        edges: [],
-        points: []
-      }
+      const polygon = polygonBorders.reduce(
+        (polygon, { edgeIndex, points }, i) => {
+          const edges = [...polygon.edges, edgeIndex]
 
-      for (let i = 0; i < tmpPolygon.length; i++) {
-        const { edgeIndex, points } = tmpPolygon[i]
-
-        polygon.edges.push(edgeIndex)
-
-        if (i === tmpPolygon.length - 1) {
-          break
-        }
-
-        if (i === 0) {
-          const nextBorderPoints = tmpPolygon[i + 1].points
-          const firstPointIndex = points.findIndex((point) => {
-            return (
-              !arePointsEqual(point, nextBorderPoints[0]) &&
-              !arePointsEqual(point, nextBorderPoints[1])
-            )
-          })
-
-          if (firstPointIndex === 0) {
-            polygon.points.push(...points)
-          } else {
-            polygon.points.push(points[1], points[0])
+          if (i === polygonBorders.length - 1) {
+            return { ...polygon, edges }
           }
 
-          continue
+          if (i === 0) {
+            const nextBorderPoints = polygonBorders[i + 1].points
+            const firstPointIndex = points.findIndex((point) => {
+              return (
+                !arePointsEqual(point, nextBorderPoints[0]) &&
+                !arePointsEqual(point, nextBorderPoints[1])
+              )
+            })
+            const newPoints = firstPointIndex ? [points[1], points[0]] : points
+
+            return { edges, points: [...polygon.points, ...newPoints] }
+          }
+
+          const polygonLastPoint = polygon.points.slice(-1)[0]
+          const newPoint = arePointsEqual(points[0], polygonLastPoint)
+            ? points[1]
+            : points[0]
+
+          return { edges, points: [...polygon.points, newPoint] }
+        },
+        {
+          edges: [],
+          points: []
         }
+      )
 
-        const polygonLastPoint = polygon.points.slice(-1)[0]
-
-        if (arePointsEqual(points[0], polygonLastPoint)) {
-          polygon.points.push(points[1])
-        } else {
-          polygon.points.push(points[0])
-        }
-      }
-
-      const polygonPoints = polygon.points.map(({ x, y }) => {
-        return [x, y]
-      })
-
-      const shapedEdgeCentroidInsidePolygon = shapedEdges.find((shapedEdge) => {
-        const { x, y } = getCentroid(shapedEdge.points)
-        const result = pointInPolygon(polygonPoints, [x, y])
-
-        return result === -1
-      })
-
-      if (shapedEdgeCentroidInsidePolygon) {
-        continue
-      }
-
-      polygons.push(polygon)
+      tmpPolygons.push(polygon)
     }
+
+    const nestedPolygons = new Map()
+
+    tmpPolygons.forEach((polygon1, i) => {
+      tmpPolygons.forEach((polygon2, j) => {
+        if (i === j) {
+          return
+        }
+
+        if (!isPolygonInsidePolygon(polygon2.points, polygon1.points)) {
+          return
+        }
+
+        if (nestedPolygons.has(i)) {
+          nestedPolygons.get(i).add(j)
+          return
+        }
+
+        nestedPolygons.set(i, new Set([j]))
+      })
+    })
+
+    const sortedNestedPolygons = new Map(
+      [...nestedPolygons.entries()].sort(([, a], [, b]) => {
+        return b.size - a.size
+      })
+    )
+
+    sortedNestedPolygons.forEach((innerPolygons, polygonIndex) => {
+      innerPolygons.forEach((innerPolygon) => {
+        const innerPolygonInsideOtherPolygons = [
+          ...sortedNestedPolygons.entries()
+        ].find(([pi, polygons]) => {
+          return pi !== polygonIndex && polygons.has(innerPolygon)
+        })
+
+        if (innerPolygonInsideOtherPolygons) {
+          innerPolygons.delete(innerPolygon)
+        }
+      })
+    })
+
+    const isShapedEdgeCentroidInsidePolygon = (shapedEdge, polygonPoints) => {
+      const centroid = getCentroid(shapedEdge.points)
+
+      return isPointInsidePolygon(centroid, polygonPoints)
+    }
+
+    const getShapedEdgesInsidePolygon = (polygonPoints) => {
+      return shapedEdges
+        .map((shapedEdge, shapedEdgeIndex) => {
+          if (isShapedEdgeCentroidInsidePolygon(shapedEdge, polygonPoints)) {
+            return shapedEdgeIndex
+          }
+
+          return null
+        })
+        .filter((shapedEdgeIndex) => {
+          return shapedEdgeIndex !== null
+        })
+    }
+
+    const isAnyShapedEdgeInsidePolygon = (
+      polygonPoints,
+      excludedShapedEdges = []
+    ) => {
+      return !!shapedEdges.find((shapedEdge, shapedEdgeIndex) => {
+        if (excludedShapedEdges.includes(shapedEdgeIndex)) {
+          return false
+        }
+
+        return isShapedEdgeCentroidInsidePolygon(shapedEdge, polygonPoints)
+      })
+    }
+
+    const getInnerPolygonsPoints = (polygonIndex) => {
+      if (!sortedNestedPolygons.has(polygonIndex)) {
+        return []
+      }
+
+      return [...sortedNestedPolygons.get(polygonIndex).values()].map(
+        (polygonIndex) => {
+          return tmpPolygons[polygonIndex].points
+        }
+      )
+    }
+
+    const polygons = tmpPolygons
+      .map((tmpPolygon, polygonIndex) => {
+        const innerPolygonsPoints = getInnerPolygonsPoints(polygonIndex)
+
+        return { ...tmpPolygon, innerPolygonsPoints }
+      })
+      .filter((polygon) => {
+        const excludedShapedEdges = polygon.innerPolygonsPoints.reduce(
+          (excludedShapedEdges, innerPolygonPoints) => {
+            const shapedEdgesInsidePolygon =
+              getShapedEdgesInsidePolygon(innerPolygonPoints)
+
+            return [...excludedShapedEdges, ...shapedEdgesInsidePolygon]
+          },
+          []
+        )
+
+        return !isAnyShapedEdgeInsidePolygon(
+          polygon.points,
+          excludedShapedEdges
+        )
+      })
 
     setPolygons(polygons)
   }
@@ -803,8 +891,14 @@ export const useLayoutPlanner = () => {
 
   const setRoomsEffect = () => {
     const rooms = polygons.map((polygon) => {
-      const center = getPolygonCenter(polygon.points)
-      const area = getPolygonArea(polygon.points)
+      const center = getPolygonCenter(
+        polygon.points,
+        polygon.innerPolygonsPoints
+      )
+      const area = getPolygonWithInnerPolygonsArea(
+        polygon.points,
+        polygon.innerPolygonsPoints
+      )
       const room = getRoomByPolygon(polygon)
 
       if (room) {
@@ -898,7 +992,7 @@ export const useLayoutPlanner = () => {
     return polygons.map((polygon) => {
       const room = getRoomByPolygon(polygon) || {}
 
-      return { points: polygon.points, ...room }
+      return { ...polygon, ...room }
     })
   }, [rooms])
   const returnedCursor = useDeepCompareMemo(() => {

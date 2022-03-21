@@ -25,17 +25,23 @@ const ShapesLayer = (props) => {
 
   return (
     <Layer {...SHAPE_OPTIMIZATION_CONFIG}>
-      {polygons.map(({ points, center, area, color }, polygonIndex) => {
-        return (
-          <Polygon
-            key={`polygon-${polygonIndex}`}
-            nodes={points}
-            center={center}
-            area={area}
-            color={color}
-          />
-        )
-      })}
+      {polygons.map(
+        (
+          { points, innerPolygonsPoints, center, area, color },
+          polygonIndex
+        ) => {
+          return (
+            <Polygon
+              key={`polygon-${polygonIndex}`}
+              points={points}
+              innerPolygonsPoints={innerPolygonsPoints}
+              center={center}
+              area={area}
+              color={color}
+            />
+          )
+        }
+      )}
       {edges.map(({ borders }, edgeIndex) => {
         return (
           <EdgeMeasurement

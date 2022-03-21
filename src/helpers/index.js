@@ -75,6 +75,20 @@ export const getPolygonArea = (polygonPoints) => {
   return Math.abs(sums + diffs) / 2
 }
 
+export const getPolygonWithInnerPolygonsArea = (
+  polygonPoints,
+  innerPolygonsPoints
+) => {
+  const polygonArea = getPolygonArea(polygonPoints)
+  const innerPolygonsAreas = innerPolygonsPoints.map((innerPolygonPoints) =>
+    getPolygonArea(innerPolygonPoints)
+  )
+
+  return innerPolygonsAreas.reduce((polygonArea, innerPolygonArea) => {
+    return polygonArea - innerPolygonArea
+  }, polygonArea)
+}
+
 export const objPointsToArray = (points) => {
   return points.map(({ x, y }) => [x, y])
 }
@@ -119,4 +133,44 @@ export const getCentroid = (points) => {
     x: sumX / points.length,
     y: sumY / points.length
   }
+}
+
+export const arePointsInClockwiseOrder = (points) => {
+  const tmpPoints = [...points, points.slice(0, 1)[0]]
+  let sum = 0
+
+  for (let i = 0; i < tmpPoints.length - 1; i++) {
+    const p1 = tmpPoints[i]
+    const p2 = tmpPoints[i + 1]
+
+    sum += (p2.x - p1.x) * (p2.y + p1.y)
+  }
+
+  return sum < 0
+}
+
+export const copyPoints = (points) => {
+  return points.map(({ x, y }) => ({ x, y }))
+}
+
+export const sortPointsInClockwiseOrder = (points) => {
+  const newPoints = copyPoints(points)
+  const isClockwiseOrder = arePointsInClockwiseOrder(newPoints)
+
+  if (!isClockwiseOrder) {
+    return newPoints.reverse()
+  }
+
+  return newPoints
+}
+
+export const sortPointsInCounterClockwiseOrder = (points) => {
+  const newPoints = copyPoints(points)
+  const isClockwiseOrder = arePointsInClockwiseOrder(newPoints)
+
+  if (isClockwiseOrder) {
+    return newPoints.reverse()
+  }
+
+  return newPoints
 }
