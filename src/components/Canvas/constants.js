@@ -35,7 +35,7 @@ export const SHAPE_OPTIMIZATION_CONFIG = {
   listening: false
 }
 
-export const FONT_SIZE = EDGE_WIDTH / 1.3
+export const FONT_SIZE = EDGE_WIDTH / 1.5
 export const FONT_CONFIG = {
   fontSize: FONT_SIZE,
   height: FONT_SIZE / 1.7,

@@ -663,12 +663,6 @@ export const useLayoutPlanner = () => {
       ]
     }, [])
 
-    const areAllBordersVisited = () => {
-      return borders.every((border) => {
-        return border.isVisited
-      })
-    }
-
     const areBordersNeighbors = (borderPoints1, borderPoints2) => {
       return (
         arePointsEqual(borderPoints1[0], borderPoints2[0]) ||
@@ -678,36 +672,14 @@ export const useLayoutPlanner = () => {
       )
     }
 
-    const visitBorder = (border) => {
-      if (!border) {
-        return
-      }
-
-      border.isVisited = true
-    }
-
-    const getUnvisitedBorder = () => {
-      const unvisitedBorder = borders.find((border) => {
-        return !border.isVisited
-      })
-
-      visitBorder(unvisitedBorder)
-
-      return unvisitedBorder
-    }
-
     const getUnvisitedNeighborBorder = (border) => {
-      const unvisitedNeighborBorder = borders.find((neighborBorder) => {
+      return borders.find((neighborBorder) => {
         if (neighborBorder.isVisited) {
           return false
         }
 
         return areBordersNeighbors(border.points, neighborBorder.points)
       })
-
-      visitBorder(unvisitedNeighborBorder)
-
-      return unvisitedNeighborBorder
     }
 
     const arePolygonBordersClosed = (polygonBorders) => {
@@ -717,15 +689,19 @@ export const useLayoutPlanner = () => {
       return areBordersNeighbors(firstBorder.points, lastBorder.points)
     }
 
-    const tmpPolygons = []
+    const tmpPolygons = borders.reduce((polygons, currentBorder) => {
+      if (currentBorder.isVisited) {
+        return polygons
+      }
 
-    while (!areAllBordersVisited()) {
       const polygonBorders = []
 
-      let border = getUnvisitedBorder() // первая попавшаяся не посещенная линия
+      let border = currentBorder
 
-      // пока можем найти линию, собираем замкнутый контур из линий
+      // пока можем найти линии, собираем из них замкнутый контур
       while (border) {
+        border.isVisited = true
+
         polygonBorders.push(border)
 
         // не посещенная линия по соседству с предыдущей линией
@@ -734,7 +710,7 @@ export const useLayoutPlanner = () => {
 
       // если контур не замыкается в начале, игнорируем его - это не контур
       if (!arePolygonBordersClosed(polygonBorders)) {
-        continue
+        return polygons
       }
 
       const polygon = polygonBorders.reduce(
@@ -771,49 +747,47 @@ export const useLayoutPlanner = () => {
         }
       )
 
-      tmpPolygons.push(polygon)
-    }
+      return [...polygons, polygon]
+    }, [])
 
-    const nestedPolygons = new Map()
+    const nestedPolygons = Object.fromEntries(
+      Object.entries(
+        tmpPolygons.reduce((nestedPolygons, currentPolygon, i) => {
+          const innerPolygons = tmpPolygons.reduce((polygons, polygon, j) => {
+            if (
+              i === j ||
+              !isPolygonInsidePolygon(polygon.points, currentPolygon.points)
+            ) {
+              return polygons
+            }
 
-    tmpPolygons.forEach((polygon1, i) => {
-      tmpPolygons.forEach((polygon2, j) => {
-        if (i === j) {
-          return
-        }
+            return [...polygons, j]
+          }, [])
 
-        if (!isPolygonInsidePolygon(polygon2.points, polygon1.points)) {
-          return
-        }
+          if (!innerPolygons.length) {
+            return nestedPolygons
+          }
 
-        if (nestedPolygons.has(i)) {
-          nestedPolygons.get(i).add(j)
-          return
-        }
-
-        nestedPolygons.set(i, new Set([j]))
-      })
-    })
-
-    const sortedNestedPolygons = new Map(
-      [...nestedPolygons.entries()].sort(([, a], [, b]) => {
-        return b.size - a.size
-      })
-    )
-
-    sortedNestedPolygons.forEach((innerPolygons, polygonIndex) => {
-      innerPolygons.forEach((innerPolygon) => {
-        const innerPolygonInsideOtherPolygons = [
-          ...sortedNestedPolygons.entries()
-        ].find(([pi, polygons]) => {
-          return pi !== polygonIndex && polygons.has(innerPolygon)
+          return {
+            ...nestedPolygons,
+            [i]: innerPolygons
+          }
+        }, {})
+      )
+        .sort(([, a], [, b]) => {
+          return b.length - a.length
         })
-
-        if (innerPolygonInsideOtherPolygons) {
-          innerPolygons.delete(innerPolygon)
-        }
-      })
-    })
+        .map(([polygonIndex, currentInnerPolygons], i, nestedPolygons) => {
+          return [
+            polygonIndex,
+            currentInnerPolygons.filter((innerPolygonIndex) => {
+              return !nestedPolygons.find(([, innerPolygons], j) => {
+                return j > i && innerPolygons.includes(innerPolygonIndex)
+              })
+            })
+          ]
+        })
+    )
 
     const isShapedEdgeCentroidInsidePolygon = (shapedEdge, polygonPoints) => {
       const centroid = getCentroid(shapedEdge.points)
@@ -849,14 +823,10 @@ export const useLayoutPlanner = () => {
     }
 
     const getInnerPolygonsPoints = (polygonIndex) => {
-      if (!sortedNestedPolygons.has(polygonIndex)) {
-        return []
-      }
-
-      return [...sortedNestedPolygons.get(polygonIndex).values()].map(
-        (polygonIndex) => {
+      return (
+        nestedPolygons[polygonIndex]?.map((polygonIndex) => {
           return tmpPolygons[polygonIndex].points
-        }
+        }) || []
       )
     }
 
